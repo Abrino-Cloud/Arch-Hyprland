@@ -1,4 +1,305 @@
-echo -e "${RED}⚠ WARNING: This will ERASE ALL DATA on $DISK_DEVICE!${NC}"
+#!/bin/bash
+# Arch Hyprland Bare - Complete Installation Script
+# Repository: https://github.com/Abrino-Cloud/Arch-Hyprland
+# Short link: https://sh.abrino.cloud/arch-1
+# Inspired by Omarchy but optimized for Iranian developers
+# Version: 2.0
+
+set -euo pipefail
+
+# Colors for beautiful output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+WHITE='\033[1;37m'
+NC='\033[0m' # No Color
+
+# Script configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOG_FILE="/tmp/arch-hyprland-install.log"
+REPO_URL="https://github.com/Abrino-Cloud/Arch-Hyprland"
+REPO_RAW="https://raw.githubusercontent.com/Abrino-Cloud/Arch-Hyprland/main"
+
+# System variables (will be set by user input)
+HOSTNAME=""
+USERNAME=""
+USER_PASSWORD=""
+ROOT_PASSWORD=""
+TIMEZONE="Asia/Tehran"
+LOCALE="en_US.UTF-8"
+KEYMAP="us"
+
+# Hardware detection variables
+CPU_VENDOR=""
+GPU_VENDOR=""
+HAS_WIFI=""
+HAS_BLUETOOTH=""
+IS_LAPTOP=""
+TOTAL_RAM=""
+DISK_DEVICE=""
+
+# Network configuration
+USE_IRANIAN_DNS="yes"
+USE_IRANIAN_MIRRORS="yes"
+SELECTED_COUNTRY="Iran"
+
+# Installation options
+INSTALL_DOTFILES=""
+DOTFILES_REPO=""
+DOTFILES_USERNAME=""
+DOTFILES_EMAIL=""
+
+# Iranian DNS servers (defaults)
+IRANIAN_DNS_PRIMARY="10.70.95.150"
+IRANIAN_DNS_SECONDARY="10.70.95.162"
+FALLBACK_DNS="1.1.1.1"
+
+# Core functions
+log() {
+    echo -e "${CYAN}[$(date +'%H:%M:%S')]${NC} $1" | tee -a "$LOG_FILE"
+}
+
+success() {
+    echo -e "${GREEN}✓${NC} $1" | tee -a "$LOG_FILE"
+}
+
+error() {
+    echo -e "${RED}✗ ERROR:${NC} $1" | tee -a "$LOG_FILE"
+    exit 1
+}
+
+warning() {
+    echo -e "${YELLOW}⚠ WARNING:${NC} $1" | tee -a "$LOG_FILE"
+}
+
+info() {
+    echo -e "${BLUE}ℹ${NC} $1" | tee -a "$LOG_FILE"
+}
+
+# Beautiful header
+show_header() {
+    clear
+    echo -e "${PURPLE}"
+    cat << 'EOF'
+╔═══════════════════════════════════════════════════════════════╗
+║                   🛡️  ARCH HYPRLAND BARE                     ║
+║                                                               ║
+║           Zero-animation perfection for developers           ║
+║              Optimized for Iranian networks                  ║
+║                                                               ║
+║        Inspired by Omarchy • Made for productivity          ║
+╚═══════════════════════════════════════════════════════════════╝
+EOF
+    echo -e "${NC}\n"
+    echo -e "${CYAN}Repository:${NC} https://github.com/Abrino-Cloud/Arch-Hyprland"
+    echo -e "${CYAN}Short link:${NC} https://sh.abrino.cloud/arch-1"
+    echo ""
+}
+
+# Check if running from Arch ISO
+check_environment() {
+    if [[ ! -f /etc/arch-release ]]; then
+        error "This script must be run from an Arch Linux ISO"
+    fi
+    
+    if [[ $EUID -eq 0 ]]; then
+        error "This script should not be run as root"
+    fi
+    
+    # Check internet connection
+    if ! ping -c 1 google.com >/dev/null 2>&1; then
+        error "No internet connection. Please connect to WiFi/Ethernet first"
+    fi
+    
+    success "Environment checks passed"
+}
+
+# Hardware detection
+detect_hardware() {
+    log "Detecting hardware configuration..."
+    
+    # CPU detection
+    if grep -q "GenuineIntel" /proc/cpuinfo; then
+        CPU_VENDOR="intel"
+    elif grep -q "AuthenticAMD" /proc/cpuinfo; then
+        CPU_VENDOR="amd"
+    else
+        CPU_VENDOR="unknown"
+    fi
+    
+    # GPU detection
+    local gpu_info=$(lspci | grep -E "VGA|3D|Display" | head -1)
+    if echo "$gpu_info" | grep -i nvidia >/dev/null; then
+        GPU_VENDOR="nvidia"
+    elif echo "$gpu_info" | grep -i amd >/dev/null; then
+        GPU_VENDOR="amd"
+    elif echo "$gpu_info" | grep -i intel >/dev/null; then
+        GPU_VENDOR="intel"
+    else
+        GPU_VENDOR="unknown"
+    fi
+    
+    # WiFi detection
+    if lspci | grep -i wireless >/dev/null || lsusb | grep -i wireless >/dev/null; then
+        HAS_WIFI="yes"
+    else
+        HAS_WIFI="no"
+    fi
+    
+    # Bluetooth detection
+    if lsusb | grep -i bluetooth >/dev/null || dmesg | grep -i bluetooth >/dev/null 2>&1; then
+        HAS_BLUETOOTH="yes"
+    else
+        HAS_BLUETOOTH="no"
+    fi
+    
+    # Laptop detection
+    if ls /sys/class/power_supply/ 2>/dev/null | grep -i bat >/dev/null; then
+        IS_LAPTOP="yes"
+    else
+        IS_LAPTOP="no"
+    fi
+    
+    # RAM detection
+    TOTAL_RAM=$(free -m | awk 'NR==2{printf "%.0f", $2/1024}')
+    
+    # Disk detection
+    DISK_DEVICE=$(lsblk -d -n -o NAME,SIZE,TYPE | awk '$3=="disk" {print "/dev/"$1; exit}')
+    
+    info "Hardware detected: CPU=$CPU_VENDOR, GPU=$GPU_VENDOR, RAM=${TOTAL_RAM}GB, Laptop=$IS_LAPTOP"
+    success "Hardware detection completed"
+}
+
+# Beautiful TUI input functions
+get_user_input() {
+    show_header
+    echo -e "${WHITE}Welcome to Arch Hyprland installation!${NC}"
+    echo "This will install a complete Arch Linux system with Hyprland."
+    echo -e "${YELLOW}⚠ This will FORMAT your entire disk!${NC}\n"
+    
+    # Show detected hardware
+    echo -e "${CYAN}Detected Hardware:${NC}"
+    echo "• CPU: $CPU_VENDOR"
+    echo "• GPU: $GPU_VENDOR"
+    echo "• RAM: ${TOTAL_RAM}GB"
+    echo "• Device Type: $([ "$IS_LAPTOP" = "yes" ] && echo "Laptop" || echo "Desktop")"
+    echo "• WiFi: $HAS_WIFI"
+    echo "• Target Disk: $DISK_DEVICE"
+    echo ""
+    
+    # Get hostname
+    while [[ -z "$HOSTNAME" ]]; do
+        read -p "$(echo -e ${BLUE}🖥️  Enter hostname [arch-dev]: ${NC})" HOSTNAME
+        HOSTNAME=${HOSTNAME:-arch-dev}
+        if [[ ! "$HOSTNAME" =~ ^[a-zA-Z0-9-]+$ ]]; then
+            echo -e "${RED}Invalid hostname. Use only letters, numbers, and hyphens.${NC}"
+            HOSTNAME=""
+        fi
+    done
+    
+    # Get username
+    while [[ -z "$USERNAME" ]]; do
+        read -p "$(echo -e ${BLUE}👤 Enter username: ${NC})" USERNAME
+        if [[ ! "$USERNAME" =~ ^[a-z][a-z0-9_-]*$ ]]; then
+            echo -e "${RED}Invalid username. Must start with letter, use lowercase.${NC}"
+            USERNAME=""
+        fi
+    done
+    
+    # Get user password
+    while [[ -z "$USER_PASSWORD" ]]; do
+        read -s -p "$(echo -e ${BLUE}🔑 Enter password for $USERNAME: ${NC})" USER_PASSWORD
+        echo
+        if [[ ${#USER_PASSWORD} -lt 6 ]]; then
+            echo -e "${RED}Password must be at least 6 characters.${NC}"
+            USER_PASSWORD=""
+            continue
+        fi
+        read -s -p "$(echo -e ${BLUE}🔑 Confirm password: ${NC})" USER_PASSWORD_CONFIRM
+        echo
+        if [[ "$USER_PASSWORD" != "$USER_PASSWORD_CONFIRM" ]]; then
+            echo -e "${RED}Passwords do not match.${NC}"
+            USER_PASSWORD=""
+        fi
+    done
+    
+    # Get root password
+    while [[ -z "$ROOT_PASSWORD" ]]; do
+        read -s -p "$(echo -e ${BLUE}🔐 Enter root password: ${NC})" ROOT_PASSWORD
+        echo
+        if [[ ${#ROOT_PASSWORD} -lt 6 ]]; then
+            echo -e "${RED}Root password must be at least 6 characters.${NC}"
+            ROOT_PASSWORD=""
+            continue
+        fi
+        read -s -p "$(echo -e ${BLUE}🔐 Confirm root password: ${NC})" ROOT_PASSWORD_CONFIRM
+        echo
+        if [[ "$ROOT_PASSWORD" != "$ROOT_PASSWORD_CONFIRM" ]]; then
+            echo -e "${RED}Passwords do not match.${NC}"
+            ROOT_PASSWORD=""
+        fi
+    done
+    
+    # Timezone selection
+    echo ""
+    read -p "$(echo -e ${BLUE}🌍 Timezone [Asia/Tehran]: ${NC})" TIMEZONE_INPUT
+    TIMEZONE=${TIMEZONE_INPUT:-Asia/Tehran}
+    
+    # DNS Configuration
+    echo ""
+    echo -e "${CYAN}DNS Configuration:${NC}"
+    echo "1. Iranian Anti-Sanctions DNS (10.70.95.150, 10.70.95.162) [Recommended]"
+    echo "2. Country-based DNS with reflector"
+    read -p "$(echo -e ${BLUE}🌐 Choose DNS option [1]: ${NC})" DNS_CHOICE
+    DNS_CHOICE=${DNS_CHOICE:-1}
+    
+    if [[ "$DNS_CHOICE" == "2" ]]; then
+        USE_IRANIAN_DNS="no"
+        read -p "$(echo -e ${BLUE}🌍 Enter your country for reflector [Iran]: ${NC})" SELECTED_COUNTRY
+        SELECTED_COUNTRY=${SELECTED_COUNTRY:-Iran}
+    fi
+    
+    # Mirror Configuration
+    echo ""
+    echo -e "${CYAN}Mirror Configuration:${NC}"
+    echo "1. Iranian mirrors (IUT, Yazd + fast regionals) [Recommended]"
+    echo "2. Country-based mirrors with reflector"
+    read -p "$(echo -e ${BLUE}🪞 Choose mirror option [1]: ${NC})" MIRROR_CHOICE
+    MIRROR_CHOICE=${MIRROR_CHOICE:-1}
+    
+    if [[ "$MIRROR_CHOICE" == "2" ]]; then
+        USE_IRANIAN_MIRRORS="no"
+    fi
+    
+    # Dotfiles option
+    echo ""
+    read -p "$(echo -e ${BLUE}📁 Do you want to setup dotfiles with chezmoi? [y/N]: ${NC})" SETUP_DOTFILES
+    if [[ "$SETUP_DOTFILES" =~ ^[Yy]$ ]]; then
+        read -p "$(echo -e ${BLUE}📦 Enter your dotfiles repository URL: ${NC})" DOTFILES_REPO
+        read -p "$(echo -e ${BLUE}👤 Git username: ${NC})" DOTFILES_USERNAME
+        read -p "$(echo -e ${BLUE}📧 Git email: ${NC})" DOTFILES_EMAIL
+        INSTALL_DOTFILES="yes"
+    fi
+    
+    # Final confirmation
+    echo ""
+    echo -e "${YELLOW}═══ INSTALLATION SUMMARY ═══${NC}"
+    echo "Hostname: $HOSTNAME"
+    echo "Username: $USERNAME"
+    echo "Timezone: $TIMEZONE"
+    echo "Target Disk: $DISK_DEVICE (${TOTAL_RAM}GB RAM detected)"
+    echo "Hardware: $CPU_VENDOR CPU, $GPU_VENDOR GPU"
+    echo "Device Type: $([ "$IS_LAPTOP" = "yes" ] && echo "Laptop" || echo "Desktop")"
+    echo "DNS: $([ "$USE_IRANIAN_DNS" = "yes" ] && echo "Iranian Anti-Sanctions" || echo "Country-based ($SELECTED_COUNTRY)")"
+    echo "Mirrors: $([ "$USE_IRANIAN_MIRRORS" = "yes" ] && echo "Iranian optimized" || echo "Country-based ($SELECTED_COUNTRY)")"
+    if [[ "$INSTALL_DOTFILES" = "yes" ]]; then
+        echo "Dotfiles: $DOTFILES_REPO"
+    fi
+    echo ""
+    echo -e "${RED}⚠ WARNING: This will ERASE ALL DATA on $DISK_DEVICE!${NC}"
     echo ""
     read -p "$(echo -e ${WHITE}Continue with installation? [y/N]: ${NC})" CONFIRM
     if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
@@ -7,23 +308,28 @@ echo -e "${RED}⚠ WARNING: This will ERASE ALL DATA on $DISK_DEVICE!${NC}"
     fi
 }
 
-# Configure Iranian DNS and mirrors
-configure_iranian_network() {
-    log "Configuring Iranian network optimizations..."
+# Configure network based on user choice
+configure_network() {
+    log "Configuring network optimizations..."
     
-    # Set Iranian DNS
-    cat > /etc/resolv.conf << EOF
+    if [[ "$USE_IRANIAN_DNS" == "yes" ]]; then
+        # Set Iranian DNS
+        cat > /etc/resolv.conf << EOF
 # Iranian Anti-Sanctions DNS
 nameserver $IRANIAN_DNS_PRIMARY
 nameserver $IRANIAN_DNS_SECONDARY
 nameserver $FALLBACK_DNS
 EOF
+        success "Iranian DNS configured"
+    fi
     
-    # Backup original mirrorlist
-    cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
-    
-    # Configure Iranian mirrors
-    cat > /etc/pacman.d/mirrorlist << 'EOF'
+    # Configure mirrors
+    if [[ "$USE_IRANIAN_MIRRORS" == "yes" ]]; then
+        # Backup original mirrorlist
+        cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
+        
+        # Configure Iranian mirrors
+        cat > /etc/pacman.d/mirrorlist << 'EOF'
 # Iranian mirrors optimized for speed
 Server = https://repo.iut.ac.ir/repo/archlinux/$repo/os/$arch
 Server = https://mirror.yazd.ac.ir/arch/$repo/os/$arch
@@ -32,11 +338,20 @@ Server = https://mirror.surf/archlinux/$repo/os/$arch
 Server = https://mirrors.edge.kernel.org/archlinux/$repo/os/$arch
 Server = https://mirror.rackspace.com/archlinux/$repo/os/$arch
 EOF
+        success "Iranian mirrors configured"
+    else
+        # Use reflector for selected country
+        if command -v reflector >/dev/null 2>&1; then
+            log "Using reflector to configure mirrors for $SELECTED_COUNTRY"
+            reflector --country "$SELECTED_COUNTRY" --latest 10 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
+            success "Mirrors configured for $SELECTED_COUNTRY"
+        else
+            warning "Reflector not available, using default mirrors"
+        fi
+    fi
     
     # Update package databases
     pacman -Sy --noconfirm
-    
-    success "Iranian network configuration completed"
 }
 
 # Disk partitioning and encryption
@@ -121,9 +436,9 @@ install_base_system() {
     success "Base system installation completed"
 }
 
-# Configure base system
+# Configure base system with Persian support
 configure_base_system() {
-    log "Configuring base system..."
+    log "Configuring base system with Persian support..."
     
     # Chroot and configure
     arch-chroot /mnt /bin/bash << EOF
@@ -131,13 +446,44 @@ configure_base_system() {
 ln -sf /usr/share/zoneinfo/$TIMEZONE /etc/localtime
 hwclock --systohc
 
-# Set locale
+# Set locales including Persian
 echo "$LOCALE UTF-8" >> /etc/locale.gen
+echo "fa_IR.UTF-8 UTF-8" >> /etc/locale.gen
 locale-gen
 echo "LANG=$LOCALE" > /etc/locale.conf
 
 # Set keymap
 echo "KEYMAP=$KEYMAP" > /etc/vconsole.conf
+
+# Configure Persian fonts and input
+cat > /etc/fonts/local.conf << FONTS_EOF
+<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+<fontconfig>
+  <!-- Persian font fallback -->
+  <alias>
+    <family>serif</family>
+    <prefer>
+      <family>Noto Serif</family>
+      <family>Vazirmatn</family>
+    </prefer>
+  </alias>
+  <alias>
+    <family>sans-serif</family>
+    <prefer>
+      <family>Noto Sans</family>
+      <family>Vazirmatn</family>
+    </prefer>
+  </alias>
+  <alias>
+    <family>monospace</family>
+    <prefer>
+      <family>JetBrainsMono Nerd Font</family>
+      <family>Vazirmatn</family>
+    </prefer>
+  </alias>
+</fontconfig>
+FONTS_EOF
 
 # Set hostname
 echo "$HOSTNAME" > /etc/hostname
@@ -153,7 +499,7 @@ HOSTS_EOF
 echo "root:$ROOT_PASSWORD" | chpasswd
 
 # Create user
-useradd -m -G wheel,video,audio,storage,optical,power -s /bin/bash "$USERNAME"
+useradd -m -G wheel,video,audio,storage,optical,power,input -s /bin/bash "$USERNAME"
 echo "$USERNAME:$USER_PASSWORD" | chpasswd
 
 # Configure sudo
@@ -189,17 +535,19 @@ BOOT_EOF
 systemctl enable NetworkManager
 systemctl enable fstrim.timer
 
-# Iranian DNS configuration
-cat > /etc/resolv.conf << DNS_EOF
+# DNS configuration based on user choice
+if [[ "$USE_IRANIAN_DNS" == "yes" ]]; then
+    cat > /etc/resolv.conf << DNS_EOF
 nameserver $IRANIAN_DNS_PRIMARY
 nameserver $IRANIAN_DNS_SECONDARY
 nameserver $FALLBACK_DNS
 DNS_EOF
-chattr +i /etc/resolv.conf
+    chattr +i /etc/resolv.conf
+fi
 
 EOF
     
-    success "Base system configuration completed"
+    success "Base system configuration with Persian support completed"
 }
 
 # Install AUR helper
@@ -248,12 +596,12 @@ EOF
     success "Graphics drivers installed"
 }
 
-# Install Hyprland and ecosystem
+# Install Hyprland with Ly display manager
 install_hyprland() {
-    log "Installing Hyprland and ecosystem..."
+    log "Installing Hyprland with Ly display manager..."
     
     arch-chroot /mnt /bin/bash << EOF
-# Core Hyprland packages
+# Core Hyprland packages with Persian font support
 pacman -S --noconfirm \
     hyprland xdg-desktop-portal-hyprland \
     waybar rofi-wayland dunst \
@@ -262,10 +610,25 @@ pacman -S --noconfirm \
     network-manager-applet polkit-kde-agent \
     pipewire pipewire-pulse pipewire-alsa wireplumber pavucontrol \
     ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji ttf-liberation \
-    sddm qt5-graphicaleffects qt5-quickcontrols2 qt5-svg
+    noto-fonts-cjk
+
+# Install Ly display manager (minimal TUI)
+sudo -u $USERNAME bash << 'AUR_EOF'
+cd /tmp
+git clone https://aur.archlinux.org/ly.git
+cd ly
+makepkg -si --noconfirm
+cd ..
+rm -rf ly
+AUR_EOF
+
+# Install Persian fonts
+sudo -u $USERNAME bash << 'FONTS_EOF'
+yay -S --noconfirm vazirmatn-fonts ttf-vazir
+FONTS_EOF
 
 # Enable services
-systemctl enable sddm
+systemctl enable ly
 systemctl --user enable pipewire
 systemctl --user enable pipewire-pulse
 systemctl --user enable wireplumber
@@ -285,48 +648,60 @@ if [[ "$IS_LAPTOP" == "yes" ]]; then
     systemctl enable tlp
     systemctl enable thermald
 fi
+
+# Configure input methods for Persian typing
+pacman -S --noconfirm fcitx5 fcitx5-configtool fcitx5-gtk fcitx5-qt
+
+# Create environment file for input method
+cat > /etc/environment << ENV_EOF
+GTK_IM_MODULE=fcitx
+QT_IM_MODULE=fcitx
+XMODIFIERS=@im=fcitx
+SDL_IM_MODULE=fcitx
+GLFW_IM_MODULE=ibus
+ENV_EOF
+
 EOF
     
-    success "Hyprland installation completed"
+    success "Hyprland with Ly display manager installation completed"
 }
 
-# Install applications
+# Install bare mode applications (Omarchy-inspired)
 install_applications() {
-    log "Installing essential applications..."
+    log "Installing bare mode applications (Omarchy-inspired)..."
     
     arch-chroot /mnt /bin/bash << EOF
-# Install from official repos
+# Install from official repos - Essential tools only
 pacman -S --noconfirm \
-    firefox chromium \
-    mpv obs-studio \
-    telegram-desktop \
+    chromium \
     btop htop neofetch fastfetch \
     eza fzf ripgrep fd bat zoxide \
     lazygit \
     file-roller timeshift \
-    chezmoi
+    chezmoi \
+    tmux
 
-# Install from AUR as user
+# Install minimal clipboard manager
+pacman -S --noconfirm copyq
+
+# Install from AUR as user - Only essentials
 sudo -u $USERNAME bash << 'AUR_EOF'
-# Essential AUR packages
+# Essential user applications (following Omarchy bare philosophy)
 yay -S --noconfirm \
-    visual-studio-code-bin \
-    ghostty-git \
-    obsidian \
-    spotify \
-    lazydocker
+    ghostty-git
 
-# Clipboard manager
-yay -S --noconfirm copyq
+# Note: Other applications like vscode, obsidian, spotify, etc. 
+# will be installed manually by user after setup to maintain
+# the "bare" philosophy
 AUR_EOF
 EOF
     
-    success "Applications installation completed"
+    success "Bare mode applications installation completed"
 }
 
-# Configure Hyprland with Catppuccin theme
+# Configure Hyprland with Catppuccin theme and Persian support
 configure_hyprland() {
-    log "Configuring Hyprland with Catppuccin theme..."
+    log "Configuring Hyprland with Catppuccin theme and Persian support..."
     
     arch-chroot /mnt /bin/bash << EOF
 # Create config directory
@@ -337,17 +712,21 @@ sudo -u $USERNAME tee /home/$USERNAME/.config/hypr/hyprland.conf > /dev/null << 
 # Arch Hyprland - Zero Animation Configuration
 # Catppuccin Mocha Theme
 
-# Monitor configuration
+# Monitor configuration (versatile for any setup)
 monitor=,preferred,auto,1
 
 # Environment variables
 env = XCURSOR_SIZE,24
 env = QT_QPA_PLATFORM,wayland
 env = MOZ_ENABLE_WAYLAND,1
+env = GTK_IM_MODULE,fcitx
+env = QT_IM_MODULE,fcitx
+env = XMODIFIERS,@im=fcitx
 
-# Input configuration
+# Input configuration with Persian support
 input {
-    kb_layout = us
+    kb_layout = us,ir
+    kb_options = grp:alt_shift_toggle
     follow_mouse = 1
     sensitivity = 0
     accel_profile = flat
@@ -374,7 +753,7 @@ general {
     resize_on_border = true
 }
 
-# Zero animations for performance
+# Zero animations for performance (Omarchy-inspired)
 animations {
     enabled = false
 }
@@ -404,17 +783,17 @@ misc {
 windowrulev2 = float, class:^(pavucontrol)$
 windowrulev2 = float, class:^(blueman-manager)$
 windowrulev2 = float, class:^(copyq)$
+windowrulev2 = float, class:^(fcitx5-config-qt)$
 
 # Keybindings
 \$mainMod = SUPER
 
-# Core applications
+# Core applications (Omarchy bare inspired)
 bind = \$mainMod, Return, exec, ghostty
 bind = \$mainMod, Q, killactive,
 bind = \$mainMod SHIFT, M, exit,
 bind = \$mainMod, E, exec, thunar
-bind = \$mainMod, W, exec, firefox
-bind = \$mainMod, C, exec, code
+bind = \$mainMod, W, exec, chromium
 bind = \$mainMod, Space, exec, rofi -show drun
 bind = \$mainMod, V, togglefloating,
 bind = \$mainMod, F, fullscreen, 0
@@ -431,6 +810,9 @@ bind = , XF86AudioMute, exec, pamixer -t
 # Brightness (for laptops)
 binde = , XF86MonBrightnessUp, exec, brightnessctl set +5%
 binde = , XF86MonBrightnessDown, exec, brightnessctl set 5%-
+
+# Input method toggle
+bind = \$mainMod, I, exec, fcitx5-remote -t
 
 # Movement
 bind = \$mainMod, H, movefocus, l
@@ -459,6 +841,7 @@ exec-once = copyq --start-server
 exec-once = wl-paste --watch cliphist store
 exec-once = nm-applet --indicator
 exec-once = /usr/lib/polkit-kde-authentication-agent-1
+exec-once = fcitx5 -d
 HYPR_EOF
 
 # GPU-specific configuration
@@ -475,10 +858,10 @@ fi
 
 EOF
     
-    success "Hyprland configuration completed"
+    success "Hyprland configuration with Persian support completed"
 }
 
-# Configure Waybar
+# Configure Waybar with Catppuccin theme
 configure_waybar() {
     log "Configuring Waybar with Catppuccin theme..."
     
@@ -668,14 +1051,14 @@ EOF
     success "Waybar configuration completed"
 }
 
-# Configure applications
+# Configure applications with tmux focus
 configure_applications() {
-    log "Configuring applications..."
+    log "Configuring applications with tmux focus..."
     
     arch-chroot /mnt /bin/bash << EOF
-# Configure tmux
+# Configure tmux with Catppuccin theme
 sudo -u $USERNAME tee /home/$USERNAME/.tmux.conf > /dev/null << 'TMUX_EOF'
-# Arch Hyprland tmux configuration
+# Arch Hyprland tmux configuration - Catppuccin theme
 set -g prefix C-a
 unbind C-b
 bind C-a send-prefix
@@ -699,7 +1082,7 @@ bind j select-pane -D
 bind k select-pane -U
 bind l select-pane -R
 
-# Catppuccin theme
+# Catppuccin Mocha theme
 set -g status-position top
 set -g status-bg "#1e1e2e"
 set -g status-fg "#cdd6f4"
@@ -708,21 +1091,21 @@ set -g status-right "#[fg=#1e1e2e,bg=#cba6f7,bold] %H:%M "
 setw -g window-status-current-format "#[fg=#1e1e2e,bg=#f38ba8] #I:#W "
 setw -g window-status-format "#[fg=#6c7086] #I:#W "
 
-# Copy mode
+# Copy mode with system clipboard
 bind-key -T copy-mode-vi v send -X begin-selection
 bind-key -T copy-mode-vi y send-keys -X copy-pipe-and-cancel "wl-copy"
 
+# Reload config
 bind r source-file ~/.tmux.conf \\; display-message "Config reloaded!"
 TMUX_EOF
 
-# Configure shell aliases
+# Configure shell aliases (Omarchy-inspired but with cat instead of bat)
 sudo -u $USERNAME tee -a /home/$USERNAME/.bashrc > /dev/null << 'BASH_EOF'
 
-# Arch Hyprland aliases
+# Arch Hyprland aliases (Omarchy-inspired)
 alias ls='eza --icons'
 alias ll='eza -la --icons'
 alias tree='eza --tree --icons'
-alias cat='bat'
 alias grep='rg'
 alias find='fd'
 
@@ -733,6 +1116,7 @@ alias ga='git add'
 alias gc='git commit'
 alias gp='git push'
 alias gl='git log --oneline'
+alias lg='lazygit'
 
 # System shortcuts
 alias ..='cd ..'
@@ -745,11 +1129,15 @@ alias tm='tmux'
 alias tma='tmux attach'
 alias tmn='tmux new-session'
 
-# Iranian DNS shortcut
+# Persian keyboard shortcut
+alias persian='fcitx5-remote -s keyboard-us-ir'
+alias english='fcitx5-remote -s keyboard-us'
+
+# DNS shortcuts
 alias iran-dns='echo "nameserver $IRANIAN_DNS_PRIMARY" | sudo tee /etc/resolv.conf && echo "nameserver $IRANIAN_DNS_SECONDARY" | sudo tee -a /etc/resolv.conf'
 BASH_EOF
 
-# Configure Ghostty
+# Configure Ghostty with Catppuccin theme
 sudo -u $USERNAME mkdir -p /home/$USERNAME/.config/ghostty
 sudo -u $USERNAME tee /home/$USERNAME/.config/ghostty/config > /dev/null << 'GHOSTTY_EOF'
 # Catppuccin Mocha theme
@@ -777,29 +1165,69 @@ palette = 13=#f5c2e7
 palette = 14=#94e2d5
 palette = 15=#a6adc8
 
-# Font
+# Font with Persian support
 font-family = JetBrainsMono Nerd Font
 font-size = 12
 
-# Performance
-shell-integration = true
+# Persian/RTL support
 copy-on-select = true
+shell-integration = true
+
+# Performance
+font-thicken = true
 GHOSTTY_EOF
+
+# Configure fcitx5 for Persian input
+sudo -u $USERNAME mkdir -p /home/$USERNAME/.config/fcitx5
+sudo -u $USERNAME tee /home/$USERNAME/.config/fcitx5/profile > /dev/null << 'FCITX_EOF'
+[Groups/0]
+Name=Default
+Default Layout=us
+DefaultIM=keyboard-us
+
+[Groups/0/Items/0]
+Name=keyboard-us
+Layout=
+
+[Groups/0/Items/1]
+Name=keyboard-us-ir
+Layout=
+
+[GroupOrder]
+0=Default
+FCITX_EOF
 
 EOF
     
-    success "Application configuration completed"
+    success "Application configuration with tmux focus completed"
 }
 
-# Setup dotfiles if requested
+# Setup dotfiles with SSH support
 setup_dotfiles() {
     if [[ "$INSTALL_DOTFILES" == "yes" && -n "$DOTFILES_REPO" ]]; then
-        log "Setting up dotfiles with chezmoi..."
+        log "Setting up dotfiles with chezmoi (SSH)..."
         
         arch-chroot /mnt /bin/bash << EOF
 sudo -u $USERNAME bash << 'DOTFILES_EOF'
 cd /home/$USERNAME
-chezmoi init --apply "$DOTFILES_REPO" || true
+
+# Configure SSH for Git if credentials provided
+if [[ -n "$DOTFILES_USERNAME" && -n "$DOTFILES_EMAIL" ]]; then
+    # Setup Git credentials
+    git config --global user.name "$DOTFILES_USERNAME"
+    git config --global user.email "$DOTFILES_EMAIL"
+    
+    # Convert HTTPS to SSH URL if needed
+    if [[ "$DOTFILES_REPO" == https* ]]; then
+        DOTFILES_REPO=\$(echo "$DOTFILES_REPO" | sed 's/https:\/\/github.com\//git@github.com:/')
+    fi
+fi
+
+# Initialize chezmoi with the repository
+chezmoi init --apply "$DOTFILES_REPO" || {
+    echo "Dotfiles setup failed - continuing without dotfiles"
+    echo "You can set them up later with: chezmoi init --apply $DOTFILES_REPO"
+}
 DOTFILES_EOF
 EOF
         
@@ -845,7 +1273,7 @@ sudo -u $USERNAME mkdir -p /home/$USERNAME/bin
 # System update script
 sudo -u $USERNAME tee /home/$USERNAME/bin/update-system > /dev/null << 'UPDATE_EOF'
 #!/bin/bash
-echo "🔄 Updating Arch Hyprland system..."
+echo "📄 Updating Arch Hyprland system..."
 sudo pacman -Syu
 yay -Syu
 if command -v chezmoi >/dev/null; then
@@ -855,12 +1283,15 @@ echo "✅ System updated!"
 UPDATE_EOF
 
 chmod +x /home/$USERNAME/bin/update-system
+
+# Add bin to PATH
+echo 'export PATH="$HOME/bin:$PATH"' >> /home/$USERNAME/.bashrc
 EOF
     
     success "Final optimizations completed"
 }
 
-# Installation completion
+# Installation completion with application guide
 installation_complete() {
     clear
     echo -e "${GREEN}"
@@ -868,28 +1299,36 @@ installation_complete() {
 ╔═══════════════════════════════════════════════════════════════╗
 ║                    🎉 INSTALLATION COMPLETE!                 ║
 ║                                                               ║
-║               🏛️  Arch Hyprland is ready!                   ║
+║               🛡️  Arch Hyprland Bare is ready!               ║
 ║                                                               ║
 ║  ✓ Zero-animation Hyprland with Catppuccin theme            ║
+║  ✓ Ly minimal TUI display manager                           ║
+║  ✓ Persian/Farsi language support                           ║
 ║  ✓ Iranian DNS and mirror optimization                       ║
 ║  ✓ Hardware-specific drivers installed                       ║
-║  ✓ Essential applications configured                         ║
-║  ✓ tmux and modern shell tools ready                         ║
+║  ✓ tmux workflow (no neovim)                                ║
+║  ✓ Ghostty terminal with Persian support                    ║
 ║  ✓ Full disk encryption with BTRFS                          ║
 ║                                                               ║
 ║  Next steps:                                                  ║
 ║  1. Remove the USB drive                                      ║
 ║  2. Reboot your system                                        ║
 ║  3. Login with your credentials                               ║
-║  4. Enjoy your blazing-fast setup!                           ║
+║  4. Install additional applications as needed                 ║
 ║                                                               ║
 ║  Useful commands:                                             ║
 ║  • Super+Return: Open Ghostty terminal                       ║
 ║  • Super+Space: Application launcher                         ║
-║  • Super+W: Firefox browser                                  ║
-║  • Super+C: VS Code editor                                   ║
+║  • Super+W: Chromium browser                                 ║
+║  • Super+I: Toggle Persian keyboard                          ║
 ║  • tm: Start tmux session                                     ║
-║  • update-system: Update everything                          ║
+║  • lg: Lazygit                                               ║
+║                                                               ║
+║  Additional apps to install later:                           ║
+║  • yay -S visual-studio-code-bin                            ║
+║  • yay -S obsidian                                          ║
+║  • yay -S spotify                                           ║
+║  • pacman -S firefox mpv obs-studio telegram-desktop        ║
 ║                                                               ║
 ║  Community: https://t.me/archlinux_ir                        ║
 ║  Repository: github.com/Abrino-Cloud/Arch-Hyprland          ║
@@ -902,6 +1341,8 @@ EOF
     echo "• Username: $USERNAME"
     echo "• Hardware: $CPU_VENDOR CPU, $GPU_VENDOR GPU"
     echo "• Type: $([ "$IS_LAPTOP" = "yes" ] && echo "Laptop" || echo "Desktop") with ${TOTAL_RAM}GB RAM"
+    echo "• Display Manager: Ly (minimal TUI)"
+    echo "• Language: English + Persian support"
     echo "• Dotfiles: $([ "$INSTALL_DOTFILES" = "yes" ] && echo "Configured" || echo "Not configured")"
     echo ""
     
@@ -931,8 +1372,8 @@ main() {
     # Get user input
     get_user_input
     
-    # Configure Iranian network
-    configure_iranian_network
+    # Configure network
+    configure_network
     
     # Disk setup
     setup_disk
@@ -1009,7 +1450,7 @@ Options:
 
 Examples:
   ./arch-hyprland-bare.sh
-  curl -L https://raw.githubusercontent.com/Abrino-Cloud/Arch-Hyprland/main/arch-hyprland-bare.sh | bash
+  curl -L https://sh.abrino.cloud/arch-1 | bash
 
 For more information:
   GitHub: https://github.com/Abrino-Cloud/Arch-Hyprland
@@ -1039,264 +1480,3 @@ echo "Arch Hyprland installation started at $(date)" > "$LOG_FILE"
 
 # Run main installation
 main "$@"
-║  #!/bin/bash
-# Arch Hyprland Bare - Complete Installation Script
-# Repository: https://github.com/Abrino-Cloud/Arch-Hyprland
-# Inspired by Omarchy but optimized for Iranian developers
-# Version: 1.0
-
-set -euo pipefail
-
-# Colors for beautiful output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-PURPLE='\033[0;35m'
-CYAN='\033[0;36m'
-WHITE='\033[1;37m'
-NC='\033[0m' # No Color
-
-# Script configuration
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOG_FILE="/tmp/arch-hyprland-install.log"
-REPO_URL="https://github.com/Abrino-Cloud/Arch-Hyprland"
-REPO_RAW="https://raw.githubusercontent.com/Abrino-Cloud/Arch-Hyprland/main"
-
-# System variables (will be set by user input)
-HOSTNAME=""
-USERNAME=""
-USER_PASSWORD=""
-ROOT_PASSWORD=""
-TIMEZONE="Asia/Tehran"
-LOCALE="en_US.UTF-8"
-KEYMAP="us"
-
-# Hardware detection variables
-CPU_VENDOR=""
-GPU_VENDOR=""
-HAS_WIFI=""
-HAS_BLUETOOTH=""
-IS_LAPTOP=""
-TOTAL_RAM=""
-DISK_DEVICE=""
-
-# Installation options
-INSTALL_DOTFILES=""
-DOTFILES_REPO=""
-
-# Iranian DNS servers
-IRANIAN_DNS_PRIMARY="10.70.95.150"
-IRANIAN_DNS_SECONDARY="10.70.95.162"
-FALLBACK_DNS="1.1.1.1"
-
-# Core functions
-log() {
-    echo -e "${CYAN}[$(date +'%H:%M:%S')]${NC} $1" | tee -a "$LOG_FILE"
-}
-
-success() {
-    echo -e "${GREEN}✓${NC} $1" | tee -a "$LOG_FILE"
-}
-
-error() {
-    echo -e "${RED}✗ ERROR:${NC} $1" | tee -a "$LOG_FILE"
-    exit 1
-}
-
-warning() {
-    echo -e "${YELLOW}⚠ WARNING:${NC} $1" | tee -a "$LOG_FILE"
-}
-
-info() {
-    echo -e "${BLUE}ℹ${NC} $1" | tee -a "$LOG_FILE"
-}
-
-# Beautiful header
-show_header() {
-    clear
-    echo -e "${PURPLE}"
-    cat << 'EOF'
-╔═══════════════════════════════════════════════════════════════╗
-║                   🏛️  ARCH HYPRLAND BARE                     ║
-║                                                               ║
-║           Zero-animation perfection for developers           ║
-║              Optimized for Iranian networks                  ║
-║                                                               ║
-║                 Inspired by Omarchy                          ║
-╚═══════════════════════════════════════════════════════════════╝
-EOF
-    echo -e "${NC}\n"
-}
-
-# Check if running from Arch ISO
-check_environment() {
-    if [[ ! -f /etc/arch-release ]]; then
-        error "This script must be run from an Arch Linux ISO"
-    fi
-    
-    if [[ $EUID -eq 0 ]]; then
-        error "This script should not be run as root"
-    fi
-    
-    # Check internet connection
-    if ! ping -c 1 google.com >/dev/null 2>&1; then
-        error "No internet connection. Please connect to WiFi/Ethernet first"
-    fi
-    
-    success "Environment checks passed"
-}
-
-# Hardware detection
-detect_hardware() {
-    log "Detecting hardware configuration..."
-    
-    # CPU detection
-    if grep -q "GenuineIntel" /proc/cpuinfo; then
-        CPU_VENDOR="intel"
-    elif grep -q "AuthenticAMD" /proc/cpuinfo; then
-        CPU_VENDOR="amd"
-    else
-        CPU_VENDOR="unknown"
-    fi
-    
-    # GPU detection
-    local gpu_info=$(lspci | grep -E "VGA|3D|Display" | head -1)
-    if echo "$gpu_info" | grep -i nvidia >/dev/null; then
-        GPU_VENDOR="nvidia"
-    elif echo "$gpu_info" | grep -i amd >/dev/null; then
-        GPU_VENDOR="amd"
-    elif echo "$gpu_info" | grep -i intel >/dev/null; then
-        GPU_VENDOR="intel"
-    else
-        GPU_VENDOR="unknown"
-    fi
-    
-    # WiFi detection
-    if lspci | grep -i wireless >/dev/null || lsusb | grep -i wireless >/dev/null; then
-        HAS_WIFI="yes"
-    else
-        HAS_WIFI="no"
-    fi
-    
-    # Bluetooth detection
-    if lsusb | grep -i bluetooth >/dev/null || dmesg | grep -i bluetooth >/dev/null 2>&1; then
-        HAS_BLUETOOTH="yes"
-    else
-        HAS_BLUETOOTH="no"
-    fi
-    
-    # Laptop detection
-    if ls /sys/class/power_supply/ 2>/dev/null | grep -i bat >/dev/null; then
-        IS_LAPTOP="yes"
-    else
-        IS_LAPTOP="no"
-    fi
-    
-    # RAM detection
-    TOTAL_RAM=$(free -m | awk 'NR==2{printf "%.0f", $2/1024}')
-    
-    # Disk detection
-    DISK_DEVICE=$(lsblk -d -n -o NAME,SIZE,TYPE | awk '$3=="disk" {print "/dev/"$1; exit}')
-    
-    info "Hardware detected: CPU=$CPU_VENDOR, GPU=$GPU_VENDOR, RAM=${TOTAL_RAM}GB, Laptop=$IS_LAPTOP"
-    success "Hardware detection completed"
-}
-
-# Beautiful TUI input functions
-get_user_input() {
-    show_header
-    echo -e "${WHITE}Welcome to Arch Hyprland installation!${NC}"
-    echo "This will install a complete Arch Linux system with Hyprland."
-    echo -e "${YELLOW}⚠ This will FORMAT your entire disk!${NC}\n"
-    
-    # Show detected hardware
-    echo -e "${CYAN}Detected Hardware:${NC}"
-    echo "• CPU: $CPU_VENDOR"
-    echo "• GPU: $GPU_VENDOR"
-    echo "• RAM: ${TOTAL_RAM}GB"
-    echo "• Device Type: $([ "$IS_LAPTOP" = "yes" ] && echo "Laptop" || echo "Desktop")"
-    echo "• WiFi: $HAS_WIFI"
-    echo "• Target Disk: $DISK_DEVICE"
-    echo ""
-    
-    # Get hostname
-    while [[ -z "$HOSTNAME" ]]; do
-        read -p "$(echo -e ${BLUE}🖥️  Enter hostname [arch-dev]: ${NC})" HOSTNAME
-        HOSTNAME=${HOSTNAME:-arch-dev}
-        if [[ ! "$HOSTNAME" =~ ^[a-zA-Z0-9-]+$ ]]; then
-            echo -e "${RED}Invalid hostname. Use only letters, numbers, and hyphens.${NC}"
-            HOSTNAME=""
-        fi
-    done
-    
-    # Get username
-    while [[ -z "$USERNAME" ]]; do
-        read -p "$(echo -e ${BLUE}👤 Enter username: ${NC})" USERNAME
-        if [[ ! "$USERNAME" =~ ^[a-z][a-z0-9_-]*$ ]]; then
-            echo -e "${RED}Invalid username. Must start with letter, use lowercase.${NC}"
-            USERNAME=""
-        fi
-    done
-    
-    # Get user password
-    while [[ -z "$USER_PASSWORD" ]]; do
-        read -s -p "$(echo -e ${BLUE}🔑 Enter password for $USERNAME: ${NC})" USER_PASSWORD
-        echo
-        if [[ ${#USER_PASSWORD} -lt 6 ]]; then
-            echo -e "${RED}Password must be at least 6 characters.${NC}"
-            USER_PASSWORD=""
-            continue
-        fi
-        read -s -p "$(echo -e ${BLUE}🔑 Confirm password: ${NC})" USER_PASSWORD_CONFIRM
-        echo
-        if [[ "$USER_PASSWORD" != "$USER_PASSWORD_CONFIRM" ]]; then
-            echo -e "${RED}Passwords do not match.${NC}"
-            USER_PASSWORD=""
-        fi
-    done
-    
-    # Get root password
-    while [[ -z "$ROOT_PASSWORD" ]]; do
-        read -s -p "$(echo -e ${BLUE}🔐 Enter root password: ${NC})" ROOT_PASSWORD
-        echo
-        if [[ ${#ROOT_PASSWORD} -lt 6 ]]; then
-            echo -e "${RED}Root password must be at least 6 characters.${NC}"
-            ROOT_PASSWORD=""
-            continue
-        fi
-        read -s -p "$(echo -e ${BLUE}🔐 Confirm root password: ${NC})" ROOT_PASSWORD_CONFIRM
-        echo
-        if [[ "$ROOT_PASSWORD" != "$ROOT_PASSWORD_CONFIRM" ]]; then
-            echo -e "${RED}Passwords do not match.${NC}"
-            ROOT_PASSWORD=""
-        fi
-    done
-    
-    # Timezone selection
-    echo ""
-    read -p "$(echo -e ${BLUE}🌍 Timezone [Asia/Tehran]: ${NC})" TIMEZONE_INPUT
-    TIMEZONE=${TIMEZONE_INPUT:-Asia/Tehran}
-    
-    # Dotfiles option
-    echo ""
-    read -p "$(echo -e ${BLUE}📁 Do you want to setup dotfiles with chezmoi? [y/N]: ${NC})" SETUP_DOTFILES
-    if [[ "$SETUP_DOTFILES" =~ ^[Yy]$ ]]; then
-        read -p "$(echo -e ${BLUE}📦 Enter your dotfiles repository URL: ${NC})" DOTFILES_REPO
-        INSTALL_DOTFILES="yes"
-    fi
-    
-    # Final confirmation
-    echo ""
-    echo -e "${YELLOW}═══ INSTALLATION SUMMARY ═══${NC}"
-    echo "Hostname: $HOSTNAME"
-    echo "Username: $USERNAME"
-    echo "Timezone: $TIMEZONE"
-    echo "Target Disk: $DISK_DEVICE (${TOTAL_RAM}GB RAM detected)"
-    echo "Hardware: $CPU_VENDOR CPU, $GPU_VENDOR GPU"
-    echo "Device Type: $([ "$IS_LAPTOP" = "yes" ] && echo "Laptop" || echo "Desktop")"
-    if [[ "$INSTALL_DOTFILES" = "yes" ]]; then
-        echo "Dotfiles: $DOTFILES_REPO"
-    fi
-    echo ""
-    echo -e "${RED}⚠ WARNING: This will ERASE ALL DATA on $DISK_DEVICE!${

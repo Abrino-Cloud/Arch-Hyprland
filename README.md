@@ -1,50 +1,72 @@
-# 🏛️ Arch Hyprland
+# 🛡️ Arch Hyprland Bare
 
-> **Zero-animation Arch Linux with Hyprland - Optimized for Iranian developers**
+**Zero-animation Hyprland perfection for Iranian developers**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Arch Linux](https://img.shields.io/badge/Arch%20Linux-1793D1?logo=arch-linux&logoColor=fff)](https://archlinux.org/)
-[![Hyprland](https://img.shields.io/badge/Hyprland-58E1FF?logo=wayland&logoColor=white)](https://hyprland.org/)
+Inspired by Omarchy but optimized for Persian users with anti-sanctions DNS, Catppuccin theming, and blazing-fast performance.
 
-**Omarchy-inspired** setup with Catppuccin theme, Iranian DNS/mirrors, and intelligent hardware detection.
-
-## 🚀 Quick Install
-
-Boot Arch ISO, connect to internet, then run:
+## ⚡ Quick Install
 
 ```bash
+# Boot from Arch ISO, connect to internet, then:
+curl -L https://sh.abrino.cloud/arch-1 | bash
+
+# Or use the full URL:
 curl -L https://raw.githubusercontent.com/Abrino-Cloud/Arch-Hyprland/main/arch-hyprland-bare.sh | bash
 ```
 
-## ✨ What You Get
+## 🎯 What You Get
 
-- **Zero-animation Hyprland** for maximum speed
-- **Catppuccin Mocha** theme everywhere
-- **Iranian optimization** (DNS, mirrors, network)
-- **DevOps toolkit** (tmux, modern CLI tools)
-- **Essential apps** (VSCode, Ghostty, Obsidian, mpv, OBS)
-- **Chezmoi dotfiles** management
-- **Full disk encryption** with BTRFS
+- **🎨 Catppuccin Mocha** - Beautiful dark theme everywhere
+- **⚡ Zero Animations** - Maximum performance, instant response
+- **🇮🇷 Persian Support** - Full RTL, Farsi fonts, keyboard switching
+- **🖥️ Ly Display Manager** - Minimal TUI login (no bloated GDM/SDDM)
+- **📱 Ghostty Terminal** - Modern GPU-accelerated terminal
+- **🔧 tmux Workflow** - Terminal multiplexer (no neovim)
+- **🛡️ Iranian Optimized** - Anti-sanctions DNS, fast mirrors
+- **🤖 Smart Detection** - Auto-configures for your hardware
 
-## 📦 Included Applications
+## 🎛️ Bare Philosophy
 
-**Development:** VSCode, Ghostty, tmux, lazygit, lazydocker  
-**Browsers:** Firefox, Chromium  
-**Media:** mpv, OBS, Spotify  
-**Productivity:** Obsidian, Telegram  
-**Shell Tools:** eza, fzf, ripgrep, fd, zoxide, btop  
+Following Omarchy's "bare mode" - only essential tools:
+- **Chromium** browser
+- **Ghostty** terminal  
+- **Essential TUI tools** (lazygit, btop, fzf, etc.)
+- **tmux** for terminal multiplexing
+- **copyq** clipboard manager
 
-## 🎯 Philosophy
+**Additional apps installed separately** (VSCode, Obsidian, Spotify, etc.)
 
-- **Performance first** - Zero animations, optimized configs
-- **Developer focused** - Terminal-centric workflow
-- **Iranian friendly** - Proper DNS, fast mirrors
-- **Minimal bloat** - Only essential applications
+## 🚀 Post-Install
+
+```bash
+# Install your preferred applications
+yay -S visual-studio-code-bin obsidian spotify
+pacman -S firefox mpv obs-studio telegram-desktop
+
+# Setup dotfiles (if not done during install)
+chezmoi init --apply git@github.com:YOUR-USERNAME/dotfiles.git
+```
+
+## 🎹 Key Bindings
+
+- `Super + Return` → Ghostty terminal
+- `Super + Space` → App launcher  
+- `Super + W` → Chromium browser
+- `Super + I` → Toggle Persian/English keyboard
+- `Alt + Shift` → Quick keyboard toggle
 
 ## 📚 Documentation
 
-[**📖 Full Documentation**](./DETAILED-README.md) | [🛠️ Installation Guide](./docs/INSTALLATION.md) | [🔧 Post-Install](./docs/POST-INSTALL.md)
+- [**Detailed Installation Guide**](DETAILED-README.md)
+- [**DevOps Tools Setup**](docs/DEVOPS-TOOLS.md)
+- [**Omarchy Manual**](https://manuals.omamix.org/2/the-omarchy-manual) (inspiration)
+
+## 🇮🇷 Persian Community
+
+- **Telegram**: [@archlinux_ir](https://t.me/archlinux_ir)
+- **DNS**: 10.70.95.150, 10.70.95.162 (Anti-sanctions)
+- **Mirrors**: IUT Tehran, Yazd University optimized
 
 ---
 
-**Made with ❤️ for Iranian developers**
+*Created by [Abrino Cloud](https://abrino.cloud) • Inspired by Omarchy*

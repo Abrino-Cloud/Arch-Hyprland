@@ -1,485 +1,422 @@
-# 🏛️ Arch Hyprland - Complete Guide
+# 🛡️ Arch Hyprland Bare - Complete Installation Guide
 
-> **Zero-animation Arch Linux with Hyprland, optimized for Iranian developers and DevOps professionals**
+**Zero-animation Hyprland perfection for Iranian developers**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Arch Linux](https://img.shields.io/badge/Arch%20Linux-1793D1?logo=arch-linux&logoColor=fff)](https://archlinux.org/)
-[![Hyprland](https://img.shields.io/badge/Hyprland-58E1FF?logo=wayland&logoColor=white)](https://hyprland.org/)
-[![Catppuccin](https://img.shields.io/badge/Catppuccin-F5E0DC?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iIzMwMjQ0NiIgZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6Ii8+PC9zdmc+)](https://github.com/catppuccin)
+This guide provides complete step-by-step instructions for installing Arch Linux with Hyprland, optimized for Persian users and inspired by Omarchy's bare philosophy.
 
-Inspired by [Omarchy](https://omarchy.org/) but tailored for **Iranian developers** with proper DNS configuration, DevOps tools, and intelligent hardware detection.
+## 📋 Table of Contents
 
-## 🎯 Philosophy
+- [Prerequisites](#prerequisites)
+- [Pre-Installation](#pre-installation)
+- [Installation Methods](#installation-methods)
+- [Post-Installation](#post-installation)
+- [Configuration](#configuration)
+- [Troubleshooting](#troubleshooting)
+- [Advanced Usage](#advanced-usage)
 
-This setup follows the **Omarchy philosophy** of speed and simplicity while adding:
+## 🔧 Prerequisites
 
-- **🇮🇷 Iranian optimization** - Anti-sanctions DNS, fast local mirrors
-- **⚡ Zero animations** - Instant response, no visual fluff  
-- **🛠️ DevOps focus** - Terminal-first workflow for cloud professionals
-- **🎨 Catppuccin everywhere** - Consistent, beautiful theming
-- **📱 Modern tooling** - Latest CLI tools and applications
+### Hardware Requirements
+- **Minimum**: 4GB RAM, 25GB storage
+- **Recommended**: 8GB+ RAM, 50GB+ storage, SSD
+- **Supported**: Intel/AMD CPUs, NVIDIA/AMD/Intel GPUs
+- **Device Types**: Laptops, desktops, virtual machines
 
-## 🚀 Quick Installation
+### What You'll Need
+- USB stick (4GB+)
+- Stable internet connection
+- Keyboard with cable/2.4GHz dongle (for disk encryption)
+- Backup of important data (installation wipes disk)
 
-### One-Command Install
-Boot from Arch ISO, connect to internet, then:
+## 🚀 Pre-Installation
 
+### 1. Download Arch Linux ISO
 ```bash
+# Download latest ISO from:
+https://archlinux.org/download/
+
+# Verify checksum (recommended)
+sha256sum archlinux-YYYY.MM.DD-x86_64.iso
+```
+
+### 2. Create Bootable USB
+**Windows/macOS**: Use [balenaEtcher](https://etcher.balena.io/)  
+**Linux**: 
+```bash
+sudo dd if=archlinux-YYYY.MM.DD-x86_64.iso of=/dev/sdX bs=4M status=progress
+```
+
+### 3. BIOS/UEFI Settings
+- **Disable Secure Boot**
+- **Enable UEFI mode** (recommended)
+- **Set USB as first boot device**
+
+### 4. Boot from USB
+- Insert USB and restart
+- Press F12/F8/Delete (varies by manufacturer) for boot menu
+- Select USB device
+
+## 🌐 Network Setup
+
+### WiFi Connection
+```bash
+iwctl
+station wlan0 scan
+station wlan0 get-networks
+station wlan0 connect "Your-Network-Name"
+# Enter password when prompted
+exit
+```
+
+### Ethernet
+Should work automatically. Verify with:
+```bash
+ping google.com
+```
+
+## 🎯 Installation Methods
+
+### Method 1: Quick Install (Recommended)
+```bash
+# Single command installation
+curl -L https://sh.abrino.cloud/arch-1 | bash
+
+# Or use full URL:
 curl -L https://raw.githubusercontent.com/Abrino-Cloud/Arch-Hyprland/main/arch-hyprland-bare.sh | bash
 ```
 
-The script will:
-1. **Ask for basic info** (hostname, username, password)
-2. **Detect your hardware** (GPU, laptop/desktop, WiFi)
-3. **Install everything** (base system, Hyprland, applications)
-4. **Configure optimally** (Iranian DNS, mirrors, drivers)
-5. **Setup dotfiles** (Chezmoi integration)
+### Method 2: Manual Arch Install + Script
+If you prefer to install base Arch manually first:
 
-### Manual Installation
+#### Step 1: Manual Arch Installation
 ```bash
-# Download and inspect
-git clone https://github.com/Abrino-Cloud/Arch-Hyprland.git
-cd Arch-Hyprland
-chmod +x arch-hyprland-bare.sh
-./arch-hyprland-bare.sh
+# Run Arch installer
+archinstall
 ```
 
-## ✨ What Gets Installed
+**archinstall settings:**
+- **Mirrors**: Select your region (Iran recommended)
+- **Disk configuration**: 
+  - Partitioning → Default partitioning layout
+  - Select disk → Your target disk
+  - Filesystem → btrfs (enable compression)
+  - **Disk encryption**: LUKS → Set password → Apply to partition
+- **Hostname**: Your choice
+- **Root password**: Set secure password
+- **User account**: Add user → Set as superuser
+- **Audio**: pipewire
+- **Network**: Copy ISO network config
+- **Additional packages**: Add `wget git`
+- **Timezone**: Asia/Tehran (or your preference)
 
-### 🎨 Core System
-- **Hyprland** - Zero-animation Wayland compositor
-- **Catppuccin Mocha** - Beautiful dark theme
-- **Waybar** - Minimal status bar
-- **Rofi** - Application launcher
-- **Dunst** - Lightweight notifications
-- **SDDM** - Display manager
-
-### 💻 Development Environment
-- **Ghostty** - Modern GPU-accelerated terminal
-- **VSCode** - Microsoft's popular editor
-- **tmux** - Terminal multiplexer (fully configured)
-- **Chezmoi** - Dotfiles management
-- **lazygit** - Beautiful git TUI
-- **lazydocker** - Docker management TUI
-
-### 🌐 Applications
-- **Firefox** - Primary browser
-- **Chromium** - Secondary browser
-- **Obsidian** - Knowledge management
-- **mpv** - Video player
-- **OBS Studio** - Streaming/recording
-- **Spotify** - Music streaming
-- **Telegram** - Messaging
-
-### 🛠️ Shell Tools (Omarchy-inspired)
-- **eza** - Modern `ls` replacement
-- **fzf** - Fuzzy finder
-- **ripgrep** - Fast text search
-- **fd** - Better `find`
-- **zoxide** - Smart `cd`
-- **btop** - Resource monitor
-- **fastfetch** - System information
-
-### 🗂️ File Management
-- **Thunar** - GUI file manager
-- **ranger** - Terminal file manager
-- **Clipboard manager** - Integrated with Ghostty/tmux/Hyprland
-
-### 🔧 DevOps Tools Overview
-Perfect foundation for cloud/DevOps professionals (install later):
-
-**Container & Orchestration:**
-- Docker & Docker Compose
-- Kubernetes (kubectl, k9s, helm)
-- Podman & Buildah
-
-**Cloud Providers:**
-- AWS CLI v2
-- Azure CLI
-- Google Cloud SDK
-- Terraform
-- Ansible
-
-**Monitoring & Observability:**
-- Prometheus tools
-- Grafana
-- ELK stack clients
-- OpenTelemetry
-
-**Infrastructure as Code:**
-- Terraform
-- Pulumi
-- CloudFormation tools
-- Ansible
-
-**CI/CD Tools:**
-- GitHub CLI
-- GitLab CLI
-- Jenkins tools
-- ArgoCD CLI
-
-## 🇮🇷 Iranian Optimizations
-
-### Network Configuration
-- **Anti-Sanctions DNS**: `10.70.95.150`, `10.70.95.162`
-- **Fast Iranian mirrors**: IUT Tehran, Yazd University
-- **Optimized TCP settings** for Iranian connections
-- **VPN-ready** configuration
-
-### Regional Support
-- **Persian fonts** included
-- **Right-to-left** text support
-- **Iranian timezone** (Asia/Tehran)
-- **Local community** links and resources
-
-## 🖥️ Hardware Support
-
-### Automatic Detection
-- **Intel/AMD CPUs** - Microcode installation
-- **NVIDIA/AMD/Intel GPUs** - Driver auto-installation
-- **Laptops** - Power management, brightness controls
-- **WiFi/Bluetooth** - Service configuration
-- **Multi-monitor** - Intelligent setup
-
-### Performance Optimization
-- **ZRAM** instead of swap
-- **BTRFS compression** for storage efficiency
-- **CPU governors** optimized per device type
-- **Graphics acceleration** properly configured
-
-## 🎨 Catppuccin Theme Details
-
-### Color Palette (Mocha)
-```
-Base:     #1e1e2e    Surface0: #313244
-Mantle:   #181825    Surface1: #45475a  
-Crust:    #11111b    Surface2: #585b70
-
-Text:     #cdd6f4    Blue:     #89b4fa
-Subtext1: #bac2de    Lavender: #b4befe
-Subtext0: #a6adc8    Sapphire: #74c7ec
-Overlay2: #9399b2    Sky:      #89dceb
-Overlay1: #7f849c    Teal:     #94e2d5
-Overlay0: #6c7086    Green:    #a6e3a1
-```
-
-### Themed Applications
-- **Hyprland** - Window borders, gaps
-- **Waybar** - Status bar colors
-- **Rofi** - Launcher theme
-- **Ghostty** - Terminal colors
-- **VSCode** - Editor theme
-- **tmux** - Status line colors
-- **Dunst** - Notification styling
-
-## 🔧 Configuration Highlights
-
-### Zero-Animation Hyprland
-```ini
-animations {
-    enabled = false
-}
-
-decoration {
-    rounding = 0
-    blur { enabled = false }
-    drop_shadow = false
-}
-
-misc {
-    disable_hyprland_logo = true
-    vfr = true
-    vrr = 1
-}
-```
-
-### tmux Configuration
-- **Prefix**: `Ctrl-a` (easier than `Ctrl-b`)
-- **Vi mode** for copy/paste
-- **Mouse support** enabled
-- **Catppuccin theme** applied
-- **Smart pane switching** with vim-like navigation
-- **Session resurrection** for persistent workflows
-
-### Ghostty Terminal
-- **GPU acceleration** for smooth performance
-- **Catppuccin colors** integrated
-- **Font**: JetBrains Mono Nerd Font
-- **Clipboard integration** with Wayland
-- **tmux integration** optimized
-
-## 📦 Package Categories
-
-### Essential (Always Installed)
-- Base system with encryption
-- Hyprland compositor
-- Core applications
-- Development tools
-- Shell utilities
-
-### Optional DevOps Extensions
-Install later based on your needs:
-
+#### Step 2: Run Hyprland Script
+After archinstall completes and you reboot:
 ```bash
-# Container platforms
-yay -S docker docker-compose podman buildah
-
-# Kubernetes tools  
-yay -S kubectl k9s helm
-
-# Cloud CLIs
-yay -S aws-cli-v2 azure-cli google-cloud-sdk
-
-# Infrastructure tools
-yay -S terraform ansible packer vault
-
-# Monitoring
-yay -S prometheus grafana-cli
-
-# Programming languages
-yay -S go rust nodejs python
-
-# Additional shells
-yay -S fish zsh starship
+# Login with your user account
+curl -L https://sh.abrino.cloud/arch-1 | bash
 ```
 
-## 🗂️ Directory Structure
+## 🔧 Installation Process Walkthrough
 
-```
-/home/username/
-├── .config/
-│   ├── hypr/           # Hyprland configuration
-│   ├── waybar/         # Status bar config
-│   ├── ghostty/        # Terminal settings
-│   ├── rofi/           # Launcher themes
-│   └── chezmoi/        # Dotfiles management
-├── .local/
-│   ├── bin/            # Custom scripts
-│   └── share/          # Application data
-├── projects/           # Development workspace
-├── .dotfiles/          # Chezmoi source
-└── bin/                # Personal scripts
-```
+### Script Prompts
+The installer will ask for:
 
-## 🔐 Security Features
+1. **Hostname** (default: arch-dev)
+2. **Username** (lowercase, no spaces)
+3. **User Password** (6+ characters)
+4. **Root Password** (6+ characters)
+5. **Timezone** (default: Asia/Tehran)
+6. **DNS Configuration**:
+   - Iranian Anti-Sanctions DNS (recommended)
+   - Or country-based with reflector
+7. **Mirror Configuration**:
+   - Iranian mirrors (IUT, Yazd + fast regionals)
+   - Or country-based with reflector
+8. **Dotfiles Setup** (optional):
+   - Repository URL (SSH format preferred)
+   - Git username and email
 
-### Disk Encryption
-- **LUKS2** full disk encryption
-- **Secure Boot** preparation
-- **BTRFS** with compression
-- **Automatic snapshots** via Timeshift
+### Hardware Detection
+Script automatically detects and configures:
+- **CPU**: Intel/AMD microcode
+- **GPU**: NVIDIA/AMD/Intel drivers
+- **Device Type**: Laptop (power management) vs Desktop
+- **Peripherals**: WiFi, Bluetooth, battery
 
-### Network Security
-- **Firewall** (UFW) configured
-- **VPN-ready** setup
-- **Secure DNS** configuration
-- **Anti-tracking** browser settings
+### Installation Steps
+1. **Disk Setup**: LUKS encryption + BTRFS with compression
+2. **Base System**: Essential Arch packages + drivers
+3. **Bootloader**: systemd-boot with encryption support
+4. **Display Manager**: Ly (minimal TUI)
+5. **Desktop Environment**: Hyprland with zero animations
+6. **Applications**: Bare essentials (Chromium, Ghostty, TUI tools)
+7. **Theming**: Catppuccin Mocha everywhere
+8. **Persian Support**: Fonts, input methods, RTL
+9. **Optimization**: Iranian DNS, mirrors, performance tweaks
 
-## 🚀 Performance Benchmarks
+## 🎨 Post-Installation
 
-### Boot Time (NVMe SSD)
-- **GRUB to login**: ~6 seconds
-- **Login to desktop**: ~2 seconds  
-- **Application launch**: Instant
+### First Boot
+1. **Remove USB drive**
+2. **Reboot system**
+3. **Enter disk encryption password**
+4. **Login with Ly display manager**
+5. **Launch Ghostty terminal** (Super+Return)
 
-### Resource Usage (Idle)
-- **RAM usage**: ~600MB total
-- **Hyprland**: ~40MB
-- **Waybar**: ~12MB
-- **Background services**: ~150MB
-
-## 🔧 Customization
-
-### Adding Your Dotfiles
-```bash
-# Initialize chezmoi with your repo
-chezmoi init git@github.com:yourusername/dotfiles.git
-
-# Apply configurations
-chezmoi apply
-
-# Keep updated
-chezmoi update
-```
-
-### Monitor Configuration
-```bash
-# List available monitors
-hyprctl monitors
-
-# Configure in hyprland.conf
-monitor = DP-1,2560x1440@144,0x0,1
-monitor = HDMI-A-1,1920x1080@60,2560x0,1
-```
-
-### Adding Applications
-```bash
-# Official repository
-sudo pacman -S package-name
-
-# AUR packages
-yay -S aur-package
-
-# Flatpak applications
-flatpak install app-name
-```
-
-## 🛠️ Daily Workflow
-
-### Terminal-Centric
-1. **Boot** → Auto-login to Hyprland
-2. **Super+Return** → Open Ghostty terminal
-3. **tmux** → Start multiplexed session
-4. **cd projects/myproject** → Navigate to work
-5. **code .** → Open VSCode
-6. **lazygit** → Git management
-7. **Super+Space** → Launch applications as needed
-
-### DevOps Tasks
-```bash
-# Container management
-lazydocker                    # Visual Docker management
-docker ps                     # List containers
-kubectl get pods             # K8s pod status
-
-# Infrastructure
-terraform plan               # Plan infrastructure changes
-ansible-playbook deploy.yml  # Run deployments
-
-# Monitoring
-btop                         # System resources
-htop                         # Process management
-```
-
-## 🌍 Community & Support
-
-### Iranian Community
-- [Arch Linux Iran](https://t.me/archlinux_ir) - Persian Arch community
-- [Linux Iran](https://t.me/linuxir) - General Linux support
-- [DevOps Iran](https://t.me/devops_ir) - DevOps professionals
-
-### Global Resources
-- [Hyprland Discord](https://discord.gg/hQ9XvMUjjr)
-- [Arch Linux Forums](https://bbs.archlinux.org/)
-- [r/hyprland](https://reddit.com/r/hyprland)
-
-### Getting Help
-1. **Check documentation** first
-2. **Search issues** on GitHub
-3. **Join Telegram groups** for real-time help
-4. **Create detailed issues** with logs
-
-## 📊 Compatibility Matrix
-
-| Component | Support | Notes |
-|-----------|---------|--------|
-| **Intel GPU** | ✅ Full | All generations |
-| **AMD GPU** | ✅ Full | RDNA+ recommended |
-| **NVIDIA GPU** | ✅ Full | GTX 900+ optimal |
-| **WiFi Intel** | ✅ Full | Out of box |
-| **WiFi Realtek** | ✅ Full | Auto-configured |
-| **Bluetooth** | ✅ Full | All major chips |
-| **Laptops** | ✅ Full | Power management |
-| **Multi-monitor** | ✅ Full | Auto-detection |
-| **HiDPI** | ✅ Full | Fractional scaling |
-
-## 🔄 Maintenance
-
-### Daily Commands
+### Essential Commands
 ```bash
 # Update system
 yay -Syu
 
-# Update dotfiles  
+# Install additional applications
+yay -S visual-studio-code-bin obsidian spotify
+pacman -S firefox mpv obs-studio telegram-desktop
+
+# Check system info
+fastfetch
+
+# Start tmux session
+tm
+
+# Open file manager
+thunar
+
+# Toggle Persian keyboard
+# Alt+Shift (quick) or Super+I (manual)
+```
+
+### Network Configuration
+```bash
+# Check current DNS
+cat /etc/resolv.conf
+
+# Switch to Iranian DNS manually
+iran-dns
+
+# Connect to WiFi graphically
+nm-applet
+```
+
+## ⚙️ Configuration
+
+### Persian Language Setup
+The system comes pre-configured with:
+- **Fonts**: Vazirmatn, Noto fonts with Persian support
+- **Input Method**: fcitx5 with us,ir layouts
+- **Keyboard Toggle**: Alt+Shift or Super+I
+- **RTL Support**: Proper text rendering
+
+### Hyprland Keybindings
+```bash
+# Essential bindings
+Super + Return      → Ghostty terminal
+Super + Space       → Application launcher (rofi)
+Super + W           → Chromium browser
+Super + E           → File manager (thunar)
+Super + Q           → Close window
+Super + F           → Fullscreen
+Super + V           → Toggle floating
+Super + I           → Toggle Persian keyboard
+
+# Workspaces
+Super + 1-5         → Switch workspace
+Super + Shift + 1-5 → Move window to workspace
+
+# Screenshots
+Print               → Screenshot selection
+Shift + Print       → Screenshot full screen
+
+# Audio/Brightness (laptops)
+XF86AudioRaiseVolume/LowerVolume/Mute
+XF86MonBrightnessUp/Down
+```
+
+### tmux Workflow
+```bash
+# Start new session
+tmux
+
+# Common tmux commands (prefix: Ctrl+A)
+Ctrl+A + |          → Split vertically
+Ctrl+A + -          → Split horizontally
+Ctrl+A + h/j/k/l    → Navigate panes
+Ctrl+A + c          → New window
+Ctrl+A + r          → Reload config
+```
+
+### Dotfiles Management
+```bash
+# Initialize dotfiles (if not done during install)
+chezmoi init --apply git@github.com:YOUR-USERNAME/dotfiles.git
+
+# Update dotfiles
 chezmoi update
+
+# Check status
+chezmoi status
+
+# Apply changes
+chezmoi apply
+```
+
+## 🔍 Troubleshooting
+
+### Common Issues
+
+#### Boot Issues
+**Problem**: System doesn't boot after installation
+```bash
+# Check if systemd-boot is installed
+bootctl status
+
+# Reinstall bootloader
+bootctl install --path=/boot
+```
+
+#### Display Issues
+**Problem**: Black screen or no display
+```bash
+# Check GPU drivers
+lspci | grep VGA
+pacman -Qs nvidia  # or amd, intel
+
+# Reinstall drivers
+pacman -S nvidia nvidia-utils  # For NVIDIA
+```
+
+#### Network Issues
+**Problem**: No internet connection
+```bash
+# Check network status
+nmcli device status
+
+# Restart NetworkManager
+sudo systemctl restart NetworkManager
+
+# Manual DNS configuration
+echo "nameserver 10.70.95.150" | sudo tee /etc/resolv.conf
+```
+
+#### Persian Input Issues
+**Problem**: Can't type Persian
+```bash
+# Check fcitx5 status
+fcitx5-remote
+
+# Start fcitx5
+fcitx5 -d
+
+# Check input method
+fcitx5-configtool
+```
+
+#### Performance Issues
+**Problem**: System feels slow
+```bash
+# Check running processes
+btop
+
+# Check systemd services
+systemctl --failed
+systemctl list-units --type=service --state=running
 
 # Clean package cache
 yay -Sc
 ```
 
-### Weekly Tasks
-- Review system logs: `journalctl -p 3`
-- Clean orphaned packages: `yay -Rns $(yay -Qtdq)`
-- Create system snapshot: `sudo timeshift --create`
+### Log Files
+```bash
+# System logs
+journalctl -b          # Current boot
+journalctl -f          # Follow logs
+journalctl -u service  # Specific service
 
-### Monthly Tasks
-- Update mirrors: `sudo reflector --country Iran --save /etc/pacman.d/mirrorlist`
-- Check disk health: `sudo smartctl -a /dev/nvme0n1`
-- Review security: `arch-audit`
+# Installation log
+/tmp/arch-hyprland-install.log
 
-## 🎓 Learning Path
+# Hyprland logs
+~/.local/share/hyprland/hyprland.log
+```
 
-### For Beginners
-1. **Learn Hyprland basics** - Window management, workspaces
-2. **Master tmux** - Session management, pane splitting
-3. **Explore CLI tools** - eza, fzf, ripgrep workflow
-4. **Customize configs** - Colors, keybindings, layouts
+## 🎯 Advanced Usage
 
-### For Advanced Users
-1. **Custom Hyprland scripts** - Window rules, automation
-2. **Advanced tmux** - Custom layouts, scripting
-3. **DevOps integration** - Container workflows, CI/CD
-4. **Performance tuning** - Kernel parameters, hardware optimization
+### Multi-Monitor Setup
+```bash
+# List available monitors
+hyprctl monitors
 
-## 🤝 Contributing
+# Configure in hyprland.conf
+monitor=DP-1,2560x1440@144,0x0,1
+monitor=HDMI-A-1,1920x1080@60,2560x0,1
+```
 
-### How to Contribute
-1. **Fork** the repository
-2. **Create feature branch**: `git checkout -b feature/amazing-feature`
-3. **Test thoroughly** on fresh Arch installation
-4. **Submit pull request** with detailed description
+### Performance Tuning
+```bash
+# CPU governor
+echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
 
-### Areas for Contribution
-- **Hardware support** improvements
-- **Performance optimizations** 
-- **Application integrations**
-- **Documentation** updates
-- **Persian translations**
-- **Video tutorials**
+# Swappiness (already optimized in script)
+cat /proc/sys/vm/swappiness  # Should be 10
 
-### Reporting Issues
-Include:
-- System information (`neofetch`)
-- Hardware details (`lspci`, `lscpu`)
-- Error logs (`journalctl -b`)
-- Steps to reproduce
+# Check ZRAM
+zramctl
+```
 
-## 📜 License
+### Security Hardening
+```bash
+# Enable firewall
+sudo ufw enable
 
-This project is licensed under the **MIT License** - see [LICENSE](LICENSE) for details.
+# Check systemd security
+systemd-analyze security
 
-### What This Means
-- ✅ Free to use, modify, distribute
-- ✅ Commercial use allowed
-- ✅ Private use allowed
-- ❗ No warranty provided
-- ❗ Must include license notice
+# Audit failed login attempts
+journalctl _SYSTEMD_UNIT=systemd-logind.service
+```
 
-## 🙏 Acknowledgments
+### Backup Strategy
+```bash
+# System backup with timeshift
+sudo timeshift --create --comments "Pre-update backup"
 
-### Inspiration & Thanks
-- **[Omarchy](https://omarchy.org/)** - Original inspiration and methodology
-- **[Arch Linux](https://archlinux.org/)** - The amazing distribution
-- **[Hyprland](https://hyprland.org/)** - Modern Wayland compositor
-- **[Catppuccin](https://github.com/catppuccin)** - Beautiful color scheme
-- **[Iranian Arch Community](https://t.me/archlinux_ir)** - Local support
+# Dotfiles backup
+chezmoi archive > dotfiles-backup.tar.gz
 
-### Technologies Used
-- [Arch Linux](https://archlinux.org/) - Base distribution
-- [Hyprland](https://hyprland.org/) - Wayland compositor
-- [Catppuccin](https://github.com/catppuccin) - Color scheme
-- [Chezmoi](https://chezmoi.io/) - Dotfiles management
-- [Ghostty](https://ghostty.org/) - Terminal emulator
-- [tmux](https://github.com/tmux/tmux) - Terminal multiplexer
+# Config backup
+tar -czf configs-backup.tar.gz ~/.config
+```
+
+### Custom Themes
+```bash
+# Wallpaper
+cp your-wallpaper.jpg ~/.local/share/backgrounds/
+# Update in hyprland.conf
+
+# GTK theme
+gsettings set org.gnome.desktop.interface gtk-theme "Catppuccin-Mocha"
+
+# Icon theme
+gsettings set org.gnome.desktop.interface icon-theme "Papirus-Dark"
+```
+
+## 📚 Additional Resources
+
+### Documentation
+- [Hyprland Wiki](https://wiki.hyprland.org/)
+- [Arch Linux Wiki](https://wiki.archlinux.org/)
+- [Catppuccin Theme](https://catppuccin.com/)
+- [Omarchy Manual](https://manuals.omamix.org/2/the-omarchy-manual)
+
+### Persian Community
+- **Telegram**: [@archlinux_ir](https://t.me/archlinux_ir)
+- **IRC**: #archlinux-ir on libera.chat
+- **Forum**: [Persian Arch Users](https://bbs.archlinux.org/)
+
+### Support
+- **GitHub Issues**: [Abrino-Cloud/Arch-Hyprland](https://github.com/Abrino-Cloud/Arch-Hyprland/issues)
+- **Email**: support@abrino.cloud
+- **Telegram**: [@abrino_support](https://t.me/abrino_support)
 
 ---
 
-<div align="center">
-
-**🏛️ Arch Hyprland - Zero-animation perfection for Iranian developers**
-
-[📖 Installation Guide](./docs/INSTALLATION.md) • [🔧 Post-Install](./docs/POST-INSTALL.md) • [🐛 Report Issue](../../issues) • [💬 Community](https://t.me/archlinux_ir)
-
-*"Performance, simplicity, beauty - optimized for Iran"*
-
-</div>
+*This guide is maintained by [Abrino Cloud](https://abrino.cloud) and the Persian Arch Linux community.*

@@ -1,145 +1,218 @@
 # 🛠️ DevOps Tools Installation Guide
 
-> **Complete toolkit for cloud professionals and DevOps engineers**
+**Essential tools for cloud engineers and DevOps professionals**
 
-This guide covers installing essential DevOps tools after your base Arch Hyprland installation.
+This guide covers installing and configuring professional DevOps tools on your Arch Hyprland Bare system. Perfect for those who "live in the terminal" and work with cloud infrastructure.
 
-## 🏗️ Container & Orchestration
+## 📋 Table of Contents
 
-### Docker & Docker Compose
+- [Container Technologies](#container-technologies)
+- [Kubernetes Ecosystem](#kubernetes-ecosystem)
+- [Cloud Provider CLIs](#cloud-provider-clis)
+- [Infrastructure as Code](#infrastructure-as-code)
+- [CI/CD Tools](#cicd-tools)
+- [Monitoring & Observability](#monitoring--observability)
+- [Security Tools](#security-tools)
+- [Programming Languages](#programming-languages)
+- [Database Tools](#database-tools)
+- [Network Tools](#network-tools)
+- [Terminal Enhancements](#terminal-enhancements)
+
+## 🐳 Container Technologies
+
+### Docker
 ```bash
 # Install Docker
-sudo pacman -S docker docker-compose
+sudo pacman -S docker docker-compose docker-buildx
 
-# Enable and start Docker
-sudo systemctl enable --now docker
+# Enable and start service
+sudo systemctl enable docker.service
+sudo systemctl start docker.service
 
 # Add user to docker group
 sudo usermod -aG docker $USER
+newgrp docker
 
-# Test installation
-docker --version
-docker-compose --version
+# Verify installation
+docker version
+docker run hello-world
 
 # Useful aliases
-echo "alias d='docker'" >> ~/.bashrc
-echo "alias dc='docker-compose'" >> ~/.bashrc
-echo "alias dps='docker ps'" >> ~/.bashrc
-echo "alias dimg='docker images'" >> ~/.bashrc
+echo 'alias d="docker"' >> ~/.bashrc
+echo 'alias dc="docker-compose"' >> ~/.bashrc
+echo 'alias dps="docker ps"' >> ~/.bashrc
+echo 'alias di="docker images"' >> ~/.bashrc
 ```
 
-### Podman & Buildah (Docker alternative)
+### Podman (Docker Alternative)
 ```bash
-# Install Podman ecosystem
-sudo pacman -S podman buildah skopeo
+# Install Podman
+sudo pacman -S podman podman-compose
 
 # Configure rootless containers
-echo "$USER:165536:65536" | sudo tee -a /etc/subuid
-echo "$USER:165536:65536" | sudo tee -a /etc/subgid
+echo 'kernel.unprivileged_userns_clone=1' | sudo tee /etc/sysctl.d/99-rootless.conf
+sudo sysctl --system
 
-# Test installation
-podman --version
-buildah --version
+# Set up registries
+sudo mkdir -p /etc/containers
+echo 'unqualified-search-registries = ["docker.io", "quay.io"]' | sudo tee /etc/containers/registries.conf
+
+# Aliases for Docker compatibility
+echo 'alias docker="podman"' >> ~/.bashrc
+echo 'alias docker-compose="podman-compose"' >> ~/.bashrc
 ```
 
-### Kubernetes Tools
+### Container Security
 ```bash
-# kubectl - Kubernetes CLI
-sudo pacman -S kubectl
-
-# k9s - Kubernetes TUI
-yay -S k9s
-
-# Helm - Package manager for Kubernetes
-sudo pacman -S helm
-
-# kubectx/kubens - Context switching
-yay -S kubectx
-
-# Useful aliases
-echo "alias k='kubectl'" >> ~/.bashrc
-echo "alias kgp='kubectl get pods'" >> ~/.bashrc
-echo "alias kgs='kubectl get services'" >> ~/.bashrc
-echo "alias kgd='kubectl get deployments'" >> ~/.bashrc
-echo "alias kdp='kubectl describe pod'" >> ~/.bashrc
-```
-
-### Container Development Tools
-```bash
-# Dive - Docker image explorer
-yay -S dive
-
-# Trivy - Vulnerability scanner
+# Trivy (vulnerability scanner)
 yay -S trivy
 
-# Hadolint - Dockerfile linter
+# Dive (image layer analyzer)
+yay -S dive
+
+# Hadolint (Dockerfile linter)
 yay -S hadolint-bin
 
-# Docker Bench Security
-yay -S docker-bench-security
+# Usage examples
+trivy image nginx:latest
+dive nginx:latest
+hadolint Dockerfile
+```
+
+## ☸️ Kubernetes Ecosystem
+
+### Core Tools
+```bash
+# kubectl
+sudo pacman -S kubectl
+
+# Helm (package manager)
+sudo pacman -S helm
+
+# kubectx/kubens (context switching)
+yay -S kubectx
+
+# k9s (TUI cluster manager)
+yay -S k9s
+
+# stern (log tailing)
+yay -S stern
+
+# kubectl aliases
+echo 'alias k="kubectl"' >> ~/.bashrc
+echo 'alias kgp="kubectl get pods"' >> ~/.bashrc
+echo 'alias kgs="kubectl get services"' >> ~/.bashrc
+echo 'alias kgd="kubectl get deployments"' >> ~/.bashrc
+echo 'alias kdp="kubectl describe pod"' >> ~/.bashrc
+echo 'alias kaf="kubectl apply -f"' >> ~/.bashrc
+echo 'alias kdel="kubectl delete"' >> ~/.bashrc
+```
+
+### Local Kubernetes
+```bash
+# Minikube
+yay -S minikube
+
+# Kind (Kubernetes in Docker)
+yay -S kind-bin
+
+# K3s (lightweight Kubernetes)
+curl -sfL https://get.k3s.io | sh -
+
+# Start minikube cluster
+minikube start --driver=docker
+minikube addons enable dashboard
+minikube addons enable ingress
+```
+
+### Advanced Kubernetes Tools
+```bash
+# Kustomize (configuration management)
+sudo pacman -S kustomize
+
+# Skaffold (development workflow)
+yay -S skaffold
+
+# Telepresence (local development with remote cluster)
+yay -S telepresence
+
+# Flux (GitOps)
+yay -S flux-bin
+
+# ArgoCD CLI
+yay -S argocd-bin
+
+# Istio service mesh
+curl -L https://istio.io/downloadIstio | sh -
+sudo mv istio-*/bin/istioctl /usr/local/bin/
 ```
 
 ## ☁️ Cloud Provider CLIs
 
-### AWS CLI v2
+### AWS
 ```bash
-# Install AWS CLI
-yay -S aws-cli-v2
+# AWS CLI v2
+sudo pacman -S aws-cli-v2
 
-# Configure (you'll need AWS credentials)
+# AWS Session Manager plugin
+yay -S session-manager-plugin
+
+# AWS SAM CLI
+yay -S aws-sam-cli
+
+# Configure AWS
 aws configure
+# Enter: Access Key, Secret Key, Region (e.g., us-east-1), Output format (json)
 
-# Useful tools
-yay -S awslogs        # CloudWatch logs CLI
-yay -S s3cmd          # S3 management
-yay -S aws-vault      # Secure credential storage
-
-# Test installation
-aws --version
+# Useful aliases
+echo 'alias awsp="aws --profile"' >> ~/.bashrc
+echo 'alias s3ls="aws s3 ls"' >> ~/.bashrc
+echo 'alias ec2ls="aws ec2 describe-instances --query \"Reservations[].Instances[].[InstanceId,State.Name,InstanceType,PublicIpAddress,Tags[?Key==\\'Name\\'].Value|[0]]\" --output table"' >> ~/.bashrc
 ```
 
-### Azure CLI
+### Azure
 ```bash
-# Install Azure CLI
+# Azure CLI
 yay -S azure-cli
 
-# Login to Azure
+# Login and configure
 az login
+az account set --subscription "Your-Subscription-Name"
 
-# Useful extensions
-az extension add --name application-insights
-az extension add --name aks-preview
-
-# Test installation
-az --version
+# Useful aliases
+echo 'alias azls="az resource list --output table"' >> ~/.bashrc
+echo 'alias azvms="az vm list --output table"' >> ~/.bashrc
 ```
 
-### Google Cloud SDK
+### Google Cloud Platform
 ```bash
-# Install Google Cloud SDK
-yay -S google-cloud-sdk
+# Google Cloud SDK
+yay -S google-cloud-cli
 
-# Initialize gcloud
-gcloud init
-
-# Install additional components
+# Additional components
 gcloud components install gke-gcloud-auth-plugin
 gcloud components install kubectl
 
-# Test installation
-gcloud version
+# Initialize and authenticate
+gcloud init
+gcloud auth login
+
+# Useful aliases
+echo 'alias gcls="gcloud compute instances list"' >> ~/.bashrc
+echo 'alias gks="gcloud container clusters get-credentials"' >> ~/.bashrc
 ```
 
-### DigitalOcean CLI
+### DigitalOcean
 ```bash
-# Install doctl
+# doctl CLI
 yay -S doctl
 
-# Authenticate
+# Configure
 doctl auth init
 
-# Test installation
-doctl version
+# Aliases
+echo 'alias dols="doctl compute droplet list"' >> ~/.bashrc
+echo 'alias dok8s="doctl kubernetes cluster kubeconfig save"' >> ~/.bashrc
 ```
 
 ## 🏗️ Infrastructure as Code
@@ -147,33 +220,27 @@ doctl version
 ### Terraform
 ```bash
 # Install Terraform
-sudo pacman -S terraform
+yay -S terraform
 
-# Terraform tools
-yay -S terraform-docs    # Generate documentation
-yay -S tflint           # Terraform linter
-yay -S terragrunt       # Terraform wrapper
+# TFLint (Terraform linter)
+yay -S tflint
+
+# Terragrunt (Terraform wrapper)
+yay -S terragrunt
+
+# Terraform docs generator
+yay -S terraform-docs
 
 # Useful aliases
-echo "alias tf='terraform'" >> ~/.bashrc
-echo "alias tfp='terraform plan'" >> ~/.bashrc
-echo "alias tfa='terraform apply'" >> ~/.bashrc
-echo "alias tfd='terraform destroy'" >> ~/.bashrc
+echo 'alias tf="terraform"' >> ~/.bashrc
+echo 'alias tfi="terraform init"' >> ~/.bashrc
+echo 'alias tfp="terraform plan"' >> ~/.bashrc
+echo 'alias tfa="terraform apply"' >> ~/.bashrc
+echo 'alias tfd="terraform destroy"' >> ~/.bashrc
+echo 'alias tfo="terraform output"' >> ~/.bashrc
 
-# Test installation
-terraform --version
-```
-
-### Pulumi
-```bash
-# Install Pulumi
-yay -S pulumi
-
-# Login to Pulumi
-pulumi login
-
-# Test installation
-pulumi version
+# Setup terraform completion
+terraform -install-autocomplete
 ```
 
 ### Ansible
@@ -181,573 +248,888 @@ pulumi version
 # Install Ansible
 sudo pacman -S ansible
 
-# Additional collections
-ansible-galaxy collection install community.general
-ansible-galaxy collection install ansible.posix
+# Ansible Lint
+sudo pacman -S ansible-lint
 
 # Useful tools
-yay -S ansible-lint     # Ansible linter
-sudo pacman -S sshpass  # SSH password support
+yay -S ansible-vault
 
-# Test installation
-ansible --version
+# Create ansible.cfg
+cat > ~/.ansible.cfg << EOF
+[defaults]
+host_key_checking = False
+inventory = ./inventory
+private_key_file = ~/.ssh/id_rsa
+remote_user = root
+
+[ssh_connection]
+ssh_args = -o ControlMaster=auto -o ControlPersist=60s
+pipelining = True
+EOF
 ```
 
-### Packer
+### Pulumi
 ```bash
-# Install Packer
+# Pulumi (Infrastructure as Code with real languages)
+yay -S pulumi
+
+# Login to Pulumi service or self-hosted
+pulumi login
+
+# Useful aliases
+echo 'alias pu="pulumi"' >> ~/.bashrc
+echo 'alias pup="pulumi up"' >> ~/.bashrc
+echo 'alias pud="pulumi destroy"' >> ~/.bashrc
+```
+
+### Other IaC Tools
+```bash
+# Packer (image building)
 yay -S packer
 
-# Test installation
-packer version
+# Vagrant (development environments)
+sudo pacman -S vagrant
+
+# CloudFormation tools
+yay -S cfn-lint
+yay -S rain  # CloudFormation deployment tool
 ```
 
-## 📊 Monitoring & Observability
+## 🔄 CI/CD Tools
 
-### Prometheus Tools
+### Jenkins
 ```bash
-# Prometheus server
-yay -S prometheus
+# Jenkins (if running locally)
+yay -S jenkins
 
-# Node exporter
-yay -S prometheus-node-exporter
-
-# Alertmanager
-yay -S alertmanager
-
-# Prometheus CLI tools
-yay -S promtool
+# Jenkins CLI
+wget https://your-jenkins-url/jnlpJars/jenkins-cli.jar
 ```
-
-### Grafana
-```bash
-# Install Grafana
-yay -S grafana
-
-# Enable and start Grafana
-sudo systemctl enable --now grafana
-
-# Grafana CLI
-yay -S grafana-cli
-```
-
-### ELK Stack Tools
-```bash
-# Elasticsearch
-yay -S elasticsearch
-
-# Logstash
-yay -S logstash
-
-# Kibana
-yay -S kibana
-
-# Filebeat
-yay -S filebeat
-```
-
-### Modern Observability
-```bash
-# Jaeger - Distributed tracing
-yay -S jaeger
-
-# OpenTelemetry Collector
-yay -S opentelemetry-collector-contrib
-
-# Vector - Log router
-yay -S vector
-```
-
-## 🔧 CI/CD & Git Tools
 
 ### GitHub CLI
 ```bash
-# Install GitHub CLI (already included in base)
+# GitHub CLI
 sudo pacman -S github-cli
 
 # Authenticate
 gh auth login
 
-# Useful extensions
-gh extension install github/gh-copilot
-gh extension install dlvhdr/gh-dash
-
-# Test installation
-gh --version
+# Useful commands
+gh repo list
+gh pr list
+gh issue list
+gh workflow list
 ```
 
 ### GitLab CLI
 ```bash
-# Install GitLab CLI
+# GitLab CLI
 yay -S glab
 
-# Authenticate
+# Configure
 glab auth login
 
-# Test installation
-glab version
+# Usage
+glab mr list
+glab pipeline list
 ```
 
-### Jenkins Tools
+### Other CI/CD Tools
 ```bash
-# Jenkins CLI
-yay -S jenkins-cli
+# Act (run GitHub Actions locally)
+yay -S act
 
-# Blue Ocean CLI
-yay -S blueocean-cli
+# CircleCI CLI
+yay -S circleci-cli
+
+# Tekton CLI
+yay -S tektoncd-cli
 ```
 
-### ArgoCD CLI
-```bash
-# ArgoCD CLI
-yay -S argocd-cli
+## 📊 Monitoring & Observability
 
-# Test installation
-argocd version
+### Prometheus Ecosystem
+```bash
+# Prometheus
+yay -S prometheus
+
+# Grafana
+yay -S grafana
+
+# Alertmanager
+yay -S alertmanager
+
+# Node Exporter
+yay -S prometheus-node-exporter
+
+# Start services
+sudo systemctl enable --now prometheus
+sudo systemctl enable --now grafana
 ```
 
-## 🔐 Security & Secrets Management
-
-### HashiCorp Vault
+### Logging Stack
 ```bash
-# Install Vault
+# Elasticsearch, Logstash, Kibana
+yay -S elasticsearch
+yay -S logstash
+yay -S kibana
+
+# Fluentd
+yay -S fluentd
+
+# Vector (high-performance log router)
+yay -S vector
+```
+
+### Application Performance Monitoring
+```bash
+# Jaeger (distributed tracing)
+yay -S jaeger
+
+# OpenTelemetry CLI
+yay -S otel-cli
+```
+
+### System Monitoring (Already have btop, adding more)
+```bash
+# Netdata (real-time monitoring)
+sudo pacman -S netdata
+
+# Prometheus exporters
+yay -S prometheus-blackbox-exporter
+yay -S prometheus-postgres-exporter
+
+# Start netdata
+sudo systemctl enable --now netdata
+```
+
+## 🔐 Security Tools
+
+### Secrets Management
+```bash
+# HashiCorp Vault
 yay -S vault
 
-# Test installation
-vault version
-```
-
-### SOPS - Secrets encryption
-```bash
-# Install SOPS
+# SOPS (encrypted secrets)
 yay -S sops
 
-# Age encryption (recommended with SOPS)
-sudo pacman -S age
+# Age (encryption tool)
+yay -S age
 
-# Test installation
-sops --version
+# Example: encrypt with SOPS
+sops --encrypt --age $(age-keygen -y key.txt) secrets.yaml > secrets.enc.yaml
 ```
 
-### Security Scanners
+### Security Scanning
 ```bash
-# Checkov - Infrastructure security scanner
+# Checkov (infrastructure security)
 yay -S checkov
 
-# Bandit - Python security linter
-sudo pacman -S bandit
+# TruffleHog (secret scanner)
+yay -S trufflehog
 
-# Safety - Python dependency vulnerability scanner
-pip install safety
-
-# Grype - Container vulnerability scanner
+# Grype (vulnerability scanner)
 yay -S grype
-```
 
-## 🌐 Networking & Service Mesh
-
-### Istio
-```bash
-# Install Istio CLI
-yay -S istioctl
-
-# Test installation
-istioctl version
-```
-
-### Linkerd
-```bash
-# Install Linkerd CLI
-yay -S linkerd2-cli
-
-# Test installation
-linkerd version
-```
-
-### Consul
-```bash
-# Install Consul
-yay -S consul
-
-# Test installation
-consul version
-```
-
-## 📡 Load Testing & Performance
-
-### Apache Bench
-```bash
-# Install Apache Bench
-sudo pacman -S apache-tools
-
-# Usage example
-ab -n 1000 -c 10 http://localhost:8080/
-```
-
-### wrk - Modern HTTP benchmarking
-```bash
-# Install wrk
-sudo pacman -S wrk
-
-# Usage example
-wrk -t12 -c400 -d30s http://localhost:8080/
-```
-
-### K6 - Load testing
-```bash
-# Install K6
-yay -S k6
-
-# Test installation
-k6 version
-```
-
-## 🔍 API Development & Testing
-
-### Postman
-```bash
-# Install Postman
-yay -S postman-bin
-
-# Alternative: Insomnia
-yay -S insomnia
-```
-
-### HTTPie - Modern curl
-```bash
-# Install HTTPie
-sudo pacman -S httpie
+# Syft (SBOM generator)
+yay -S syft
 
 # Usage examples
-http GET https://api.github.com/user
-http POST https://httpbin.org/post name=Amir city=Tehran
+checkov -f main.tf
+trufflehog git https://github.com/example/repo
+grype nginx:latest
+syft nginx:latest
 ```
 
-### jq - JSON processor
+### Network Security
 ```bash
-# Install jq (essential for API work)
-sudo pacman -S jq
+# Nmap (network scanner)
+sudo pacman -S nmap
 
-# Usage examples
-curl -s https://api.github.com/user | jq '.name'
-kubectl get pods -o json | jq '.items[].metadata.name'
+# Wireshark (packet analyzer)
+sudo pacman -S wireshark-qt
+
+# OpenVPN
+sudo pacman -S openvpn
+
+# WireGuard
+sudo pacman -S wireguard-tools
 ```
 
-## 🗄️ Database Tools
-
-### Database CLIs
-```bash
-# PostgreSQL client
-sudo pacman -S postgresql-libs
-
-# MySQL client
-sudo pacman -S mysql-clients
-
-# Redis CLI
-sudo pacman -S redis
-
-# MongoDB tools
-yay -S mongodb-tools
-
-# ClickHouse client
-yay -S clickhouse-client
-```
-
-### Database Management
-```bash
-# DBeaver - Universal database tool
-yay -S dbeaver
-
-# pgAdmin - PostgreSQL admin
-yay -S pgadmin4
-
-# MongoDB Compass
-yay -S mongodb-compass
-```
-
-## 📝 Documentation & Communication
-
-### Markdown Tools
-```bash
-# Pandoc - Universal document converter
-sudo pacman -S pandoc
-
-# Mermaid CLI - Diagram generation
-yay -S mermaid-cli
-
-# PlantUML - UML diagrams
-sudo pacman -S plantuml
-```
-
-### Slack
-```bash
-# Slack desktop
-yay -S slack-desktop
-```
-
-### Teams
-```bash
-# Microsoft Teams
-yay -S teams
-```
-
-## 🛠️ Development Languages & Frameworks
+## 💻 Programming Languages
 
 ### Go
 ```bash
-# Install Go
+# Go language
 sudo pacman -S go
 
 # Go tools
 go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-go install honnef.co/go/tools/cmd/staticcheck@latest
+go install github.com/air-verse/air@latest  # Live reload
+go install github.com/goreleaser/goreleaser@latest
 
-# Test installation
-go version
+# Add Go bin to PATH
+echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.bashrc
 ```
 
 ### Python
 ```bash
-# Python (already installed)
-sudo pacman -S python python-pip python-poetry
+# Python is already installed, add tools
+sudo pacman -S python-pip python-pipenv python-virtualenv
 
-# Virtual environment tools
-sudo pacman -S python-virtualenv python-pipenv
+# Poetry (dependency management)
+yay -S python-poetry
 
-# Useful Python tools
-pip install --user black isort flake8 mypy
+# Python tools
+pip install --user black flake8 mypy pytest
+
+# Virtual environment
+echo 'alias venv="python -m venv"' >> ~/.bashrc
+echo 'alias activate="source venv/bin/activate"' >> ~/.bashrc
 ```
 
 ### Node.js
 ```bash
-# Node.js (already installed)
-sudo pacman -S nodejs npm yarn
+# Node.js and npm
+sudo pacman -S nodejs npm
 
-# Node version manager
+# Yarn
+sudo pacman -S yarn
+
+# NVM (Node Version Manager)
 yay -S nvm
 
 # Global packages
-npm install -g @angular/cli
-npm install -g create-react-app
-npm install -g vue-cli
-npm install -g typescript
+npm install -g typescript ts-node nodemon
+npm install -g @aws-cdk/cli
+npm install -g serverless
 ```
 
 ### Rust
 ```bash
-# Install Rust
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+# Rust
+sudo pacman -S rustup
 
-# Add to PATH
-source ~/.cargo/env
+# Set up Rust
+rustup default stable
+rustup component add clippy rustfmt
 
-# Useful tools
-cargo install cargo-edit
-cargo install cargo-audit
+# Cargo tools
 cargo install cargo-watch
+cargo install cargo-audit
+cargo install cargo-outdated
 ```
 
-## 📊 Quick Installation Scripts
+### Java
+```bash
+# OpenJDK
+sudo pacman -S jdk-openjdk
 
-### Essential DevOps Stack
+# Maven
+sudo pacman -S maven
+
+# Gradle
+sudo pacman -S gradle
+
+# SDKMAN for managing Java versions
+curl -s "https://get.sdkman.io" | bash
+```
+
+## 🗄️ Database Tools
+
+### Database Clients
+```bash
+# Universal database tool
+yay -S dbeaver
+
+# PostgreSQL client
+sudo pacman -S postgresql-clients
+
+# MySQL client
+sudo pacman -S mysql-clients
+
+# MongoDB client
+yay -S mongodb-compass
+
+# Redis client
+sudo pacman -S redis
+yay -S redis-desktop-manager
+```
+
+### Database CLIs
+```bash
+# pgcli (PostgreSQL CLI with autocomplete)
+pip install --user pgcli
+
+# mycli (MySQL CLI with autocomplete)
+pip install --user mycli
+
+# MongoDB shell
+yay -S mongodb-shell
+
+# Usage examples
+pgcli postgresql://user:password@localhost/database
+mycli -u username -p password database_name
+```
+
+## 🌐 Network Tools
+
+### HTTP/API Tools
+```bash
+# HTTPie (user-friendly curl)
+sudo pacman -S httpie
+
+# Curl (already installed, but adding here)
+# curl is already available
+
+# Postman alternative
+yay -S insomnia-bin
+
+# gRPC tools
+yay -S grpcurl
+yay -S ghz  # gRPC load testing
+
+# Usage examples
+http GET httpbin.org/json
+curl -X POST https://api.example.com/data
+grpcurl -plaintext localhost:9090 list
+```
+
+### Network Diagnostics
+```bash
+# Network tools (most already available)
+sudo pacman -S traceroute mtr bind-tools
+
+# Speedtest
+yay -S speedtest-cli
+
+# Network bandwidth monitor
+sudo pacman -S iftop nethogs
+
+# Usage
+mtr google.com
+speedtest
+sudo iftop
+sudo nethogs
+```
+
+## 🚀 Terminal Enhancements
+
+### Shell Improvements (Building on existing setup)
+```bash
+# starship prompt (modern prompt)
+yay -S starship
+
+# Add to bashrc
+echo 'eval "$(starship init bash)"' >> ~/.bashrc
+
+# zsh (alternative shell)
+sudo pacman -S zsh zsh-completions
+yay -S oh-my-zsh-git
+
+# Fish shell (user-friendly)
+sudo pacman -S fish
+```
+
+### Productivity Tools
+```bash
+# jq (JSON processor) - already have this
+# yq (YAML processor)
+yay -S yq
+
+# fx (JSON viewer)
+yay -S fx
+
+# Miller (data processing)
+yay -S miller
+
+# Usage examples
+cat data.json | jq '.items[]'
+cat config.yaml | yq '.services'
+cat data.json | fx
+```
+
+### File Management
+```bash
+# ranger (TUI file manager)
+sudo pacman -S ranger
+
+# nnn (fast file manager)
+sudo pacman -S nnn
+
+# lf (minimalist file manager)
+yay -S lf
+
+# Usage
+ranger  # Navigate with hjkl
+nnn     # Very fast navigation
+lf      # Minimal interface
+```
+
+## 🔧 Configuration Examples
+
+### Tmux DevOps Configuration
+Add to your `~/.tmux.conf`:
+```bash
+# DevOps specific tmux bindings
+bind-key K split-window -h 'kubectl get pods --watch'
+bind-key D split-window -h 'docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"'
+bind-key T split-window -h 'terraform plan'
+bind-key A split-window -h 'ansible-playbook --check playbook.yml'
+
+# Quick commands
+bind-key C-k send-keys 'kubectl get pods' Enter
+bind-key C-d send-keys 'docker ps' Enter
+bind-key C-t send-keys 'terraform' Space
+bind-key C-a send-keys 'ansible-playbook' Space
+```
+
+### Kubectl Configuration
+```bash
+# Create useful kubectl aliases
+cat >> ~/.bashrc << 'EOF'
+# Kubectl aliases
+alias k='kubectl'
+alias kaf='kubectl apply -f'
+alias kdel='kubectl delete'
+alias kget='kubectl get'
+alias kdesc='kubectl describe'
+alias klogs='kubectl logs'
+alias kexec='kubectl exec -it'
+
+# Kubernetes contexts
+alias kctx='kubectx'
+alias kns='kubens'
+
+# Quick pod access
+kpod() { kubectl exec -it $(kubectl get pods | grep $1 | awk '{print $1}' | head -1) -- /bin/bash; }
+EOF
+```
+
+### Docker Configuration
+```bash
+# Docker aliases for productivity
+cat >> ~/.bashrc << 'EOF'
+# Docker aliases
+alias dps='docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"'
+alias dpsa='docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"'
+alias di='docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"'
+alias dlog='docker logs -f'
+alias dexec='docker exec -it'
+alias dclean='docker system prune -a'
+
+# Quick container access
+dsh() { docker exec -it $1 /bin/bash; }
+EOF
+```
+
+## 📚 Learning Resources
+
+### Documentation & Cheat Sheets
+```bash
+# Install cheat (cheat sheets)
+yay -S cheat
+
+# Install tldr (simplified man pages)
+sudo pacman -S tldr
+
+# Update cheat sheets
+cheat --update
+
+# Usage examples
+cheat docker
+cheat kubectl
+tldr curl
+tldr ssh
+```
+
+### Online Resources
+- **Kubernetes**: [kubernetes.io/docs](https://kubernetes.io/docs/)
+- **Docker**: [docs.docker.com](https://docs.docker.com/)
+- **Terraform**: [terraform.io/docs](https://terraform.io/docs/)
+- **Ansible**: [docs.ansible.com](https://docs.ansible.com/)
+- **AWS**: [docs.aws.amazon.com](https://docs.aws.amazon.com/)
+- **Azure**: [docs.microsoft.com/azure](https://docs.microsoft.com/azure/)
+- **GCP**: [cloud.google.com/docs](https://cloud.google.com/docs/)
+
+## 🔄 Maintenance & Updates
+
+### Keep Tools Updated
+```bash
+# Update all packages
+yay -Syu
+
+# Update specific tools
+terraform version  # Check current version
+yay -S terraform   # Update to latest
+
+# Update cloud CLIs
+aws --version
+az version
+gcloud version
+
+# Update Kubernetes tools
+kubectl version --client
+helm version
+```
+
+### Backup Important Configurations
+```bash
+# Backup kubectl configs
+cp -r ~/.kube ~/.kube.backup
+
+# Backup cloud CLI configs
+cp -r ~/.aws ~/.aws.backup
+cp -r ~/.azure ~/.azure.backup
+cp -r ~/.config/gcloud ~/.config/gcloud.backup
+
+# Backup SSH keys
+cp -r ~/.ssh ~/.ssh.backup
+
+# Create a dotfiles backup
+tar -czf devops-configs-$(date +%Y%m%d).tar.gz \
+    ~/.kube ~/.aws ~/.azure ~/.config/gcloud ~/.ssh/config \
+    ~/.tmux.conf ~/.bashrc ~/.gitconfig
+```
+
+### Performance Optimization
+```bash
+# Optimize shell startup time
+echo 'export HISTSIZE=1000' >> ~/.bashrc
+echo 'export HISTFILESIZE=2000' >> ~/.bashrc
+
+# Enable completion caching
+echo 'autoload -U compinit && compinit -C' >> ~/.zshrc  # if using zsh
+
+# Docker optimization
+echo '{"log-driver": "json-file", "log-opts": {"max-size": "10m", "max-file": "3"}}' | sudo tee /etc/docker/daemon.json
+sudo systemctl restart docker
+```
+
+## 🛡️ Security Best Practices
+
+### SSH Configuration
+```bash
+# Generate SSH keys for different purposes
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_work -C "work@example.com"
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_personal -C "personal@example.com"
+
+# SSH config for different environments
+cat > ~/.ssh/config << 'EOF'
+# Work servers
+Host work-*
+    User devops
+    IdentityFile ~/.ssh/id_ed25519_work
+    IdentitiesOnly yes
+
+# Personal servers
+Host personal-*
+    User admin
+    IdentityFile ~/.ssh/id_ed25519_personal
+    IdentitiesOnly yes
+
+# AWS EC2 instances
+Host *.amazonaws.com
+    User ec2-user
+    IdentityFile ~/.ssh/aws-key.pem
+    IdentitiesOnly yes
+
+# Global settings
+Host *
+    ServerAliveInterval 60
+    ServerAliveCountMax 10
+    ForwardAgent no
+    AddKeysToAgent yes
+EOF
+```
+
+### Git Configuration for DevOps
+```bash
+# Configure Git for work
+git config --global user.name "Your Name"
+git config --global user.email "your.email@company.com"
+git config --global init.defaultBranch main
+
+# Useful Git aliases
+git config --global alias.st status
+git config --global alias.co checkout
+git config --global alias.br branch
+git config --global alias.cm commit
+git config --global alias.pl pull
+git config --global alias.ps push
+git config --global alias.lg "log --oneline --graph --all"
+
+# Sign commits (optional but recommended)
+git config --global commit.gpgsign true
+git config --global user.signingkey YOUR_GPG_KEY_ID
+```
+
+### Secrets Management
+```bash
+# Install and configure pass (password store)
+sudo pacman -S pass
+
+# Initialize password store
+gpg --gen-key
+pass init your-gpg-key-id
+
+# Store secrets
+pass insert aws/access-key
+pass insert github/token
+pass insert database/password
+
+# Use in scripts
+AWS_ACCESS_KEY=$(pass show aws/access-key)
+```
+
+## 🚀 Quick Setup Scripts
+
+### One-liner Installations
+
+```bash
+# Essential DevOps stack
+yay -S --noconfirm docker docker-compose kubectl helm terraform ansible aws-cli-v2 k9s
+
+# Monitoring stack
+yay -S --noconfirm prometheus grafana netdata
+
+# Security tools
+yay -S --noconfirm vault sops trivy
+
+# Programming languages
+sudo pacman -S --noconfirm go nodejs npm python-poetry rustup
+```
+
+### Environment Setup Script
+Create `~/bin/setup-devops.sh`:
 ```bash
 #!/bin/bash
-# Install essential DevOps tools
+# DevOps Environment Setup Script
 
-echo "🚀 Installing essential DevOps tools..."
+set -e
 
-# Containers
-sudo pacman -S docker docker-compose kubectl helm
-yay -S k9s lazydocker
+echo "🚀 Setting up DevOps environment..."
 
-# Cloud CLIs
-yay -S aws-cli-v2 azure-cli google-cloud-sdk
+# Create directories
+mkdir -p ~/bin ~/projects/{terraform,ansible,k8s,docker}
 
-# Infrastructure
-sudo pacman -S terraform ansible
-yay -S packer
+# Install essential packages
+yay -S --noconfirm docker kubectl helm terraform ansible
 
-# Monitoring
-yay -S prometheus grafana-cli
-
-# Git & CI/CD
-sudo pacman -S github-cli
-yay -S glab argocd-cli
-
-# Security
-yay -S vault sops
-
-# Utilities
-sudo pacman -S jq httpie
-
-echo "✅ Essential DevOps tools installed!"
-```
-
-### Cloud Native Stack
-```bash
-#!/bin/bash
-# Install cloud-native development stack
-
-echo "☁️ Installing cloud-native tools..."
-
-# Kubernetes ecosystem
-sudo pacman -S kubectl helm
-yay -S k9s kubectx istioctl linkerd2-cli
-
-# Container tools
-sudo pacman -S docker docker-compose podman buildah
-yay -S dive trivy hadolint-bin
-
-# Service mesh
-yay -S istioctl linkerd2-cli
-
-# GitOps
-yay -S argocd-cli flux-cli
-
-# Observability
-yay -S prometheus grafana-cli jaeger
-yay -S opentelemetry-collector-contrib
-
-echo "✅ Cloud-native stack installed!"
-```
-
-### Security & Compliance
-```bash
-#!/bin/bash
-# Install security and compliance tools
-
-echo "🔐 Installing security tools..."
-
-# Secret management
-yay -S vault sops
-sudo pacman -S age
-
-# Security scanners
-yay -S checkov trivy grype
-sudo pacman -S bandit
-
-# Compliance
-yay -S terraform-compliance
-pip install --user safety
-
-# Network security
-sudo pacman -S nmap wireshark-cli
-yay -S fierce
-
-echo "✅ Security tools installed!"
-```
-
-## 🎯 Recommended Installation Order
-
-### Day 1 - Container Foundation
-```bash
-# Essential containers
-sudo pacman -S docker docker-compose
-yay -S lazydocker
-
-# Enable services
-sudo systemctl enable --now docker
+# Configure Docker
+sudo systemctl enable docker
 sudo usermod -aG docker $USER
 
-# Test setup
-docker run hello-world
-```
-
-### Day 2 - Kubernetes
-```bash
-# Kubernetes tools
-sudo pacman -S kubectl helm
-yay -S k9s kubectx
-
-# Practice environment
-yay -S kind  # Local Kubernetes
-```
-
-### Day 3 - Cloud CLIs
-```bash
-# Choose your primary cloud
-yay -S aws-cli-v2     # For AWS
-# OR
-yay -S azure-cli      # For Azure
-# OR
-yay -S google-cloud-sdk  # For GCP
-```
-
-### Day 4 - Infrastructure as Code
-```bash
-# Terraform ecosystem
-sudo pacman -S terraform
-yay -S terraform-docs tflint
-
-# Configuration management
-sudo pacman -S ansible
-```
-
-### Week 2 - Advanced Tools
-Install monitoring, security, and specialized tools based on your specific needs.
-
-## 💡 Pro Tips
-
-### Aliases for Efficiency
-Add these to your `~/.bashrc`:
-```bash
-# Docker shortcuts
+# Setup aliases
+cat >> ~/.bashrc << 'EOF'
+# DevOps aliases
+alias k='kubectl'
+alias tf='terraform'
 alias d='docker'
 alias dc='docker-compose'
-alias dps='docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"'
+EOF
 
-# Kubernetes shortcuts
-alias k='kubectl'
-alias kgp='kubectl get pods'
-alias kgs='kubectl get services'
-alias kgd='kubectl get deployments'
-alias kns='kubens'
-alias kctx='kubectx'
+# Create useful scripts
+cat > ~/bin/k8s-context << 'EOF'
+#!/bin/bash
+kubectl config get-contexts
+read -p "Enter context name: " context
+kubectl config use-context $context
+EOF
 
-# Terraform shortcuts
-alias tf='terraform'
-alias tfp='terraform plan'
-alias tfa='terraform apply'
-alias tfi='terraform init'
+chmod +x ~/bin/k8s-context
 
-# Git shortcuts
-alias g='git'
-alias gs='git status'
-alias gp='git push'
-alias gl='git log --oneline -10'
-
-# System shortcuts
-alias ll='eza -la --icons'
-alias update='sudo pacman -Syu && yay -Syu'
+echo "✅ DevOps environment setup complete!"
+echo "Please reboot or run 'newgrp docker' to apply group changes"
 ```
 
-### tmux DevOps Layout
-Create a tmux session template for DevOps work:
+### Project Templates
 ```bash
-# ~/.tmux/devops-session
-new-session -d -s devops
-split-window -h
-split-window -v
-select-pane -t 0
-send-keys 'cd ~/projects' Enter
-send-keys 'ls -la' Enter
-select-pane -t 1
-send-keys 'k9s' Enter
-select-pane -t 2
-send-keys 'lazydocker' Enter
-select-pane -t 0
+# Create project template directories
+mkdir -p ~/templates/{terraform,ansible,k8s}
+
+# Terraform template
+cat > ~/templates/terraform/main.tf << 'EOF'
+terraform {
+  required_version = ">= 1.0"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = var.aws_region
+}
+
+variable "aws_region" {
+  description = "AWS region"
+  type        = string
+  default     = "us-west-2"
+}
+EOF
+
+# Ansible template
+cat > ~/templates/ansible/playbook.yml << 'EOF'
+---
+- name: Sample playbook
+  hosts: all
+  become: yes
+  tasks:
+    - name: Update package cache
+      package:
+        update_cache: yes
+      
+    - name: Install basic packages
+      package:
+        name:
+          - curl
+          - wget
+          - git
+        state: present
+EOF
+
+# Kubernetes template
+cat > ~/templates/k8s/deployment.yml << 'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+  labels:
+    app: myapp
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: myapp
+  template:
+    metadata:
+      labels:
+        app: myapp
+    spec:
+      containers:
+      - name: app
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+EOF
 ```
 
-Load with: `tmux source-file ~/.tmux/devops-session`
+## 📊 Monitoring Your Setup
+
+### System Health Check Script
+Create `~/bin/devops-health-check.sh`:
+```bash
+#!/bin/bash
+# DevOps Tools Health Check
+
+echo "🏥 DevOps Environment Health Check"
+echo "=================================="
+
+# Check Docker
+if systemctl is-active --quiet docker; then
+    echo "✅ Docker: Running"
+    echo "   Version: $(docker --version)"
+else
+    echo "❌ Docker: Not running"
+fi
+
+# Check Kubernetes tools
+if command -v kubectl &> /dev/null; then
+    echo "✅ kubectl: $(kubectl version --client --short)"
+else
+    echo "❌ kubectl: Not installed"
+fi
+
+# Check cloud CLIs
+for cli in aws az gcloud; do
+    if command -v $cli &> /dev/null; then
+        echo "✅ $cli: Available"
+    else
+        echo "❌ $cli: Not installed"
+    fi
+done
+
+# Check Terraform
+if command -v terraform &> /dev/null; then
+    echo "✅ Terraform: $(terraform version | head -1)"
+else
+    echo "❌ Terraform: Not installed"
+fi
+
+# Check system resources
+echo ""
+echo "💻 System Resources:"
+echo "   CPU: $(nproc) cores"
+echo "   RAM: $(free -h | awk '/^Mem:/ {print $2}') total, $(free -h | awk '/^Mem:/ {print $7}') available"
+echo "   Disk: $(df -h / | awk 'NR==2 {print $4}') free"
+
+echo ""
+echo "🔧 Active containers: $(docker ps --format 'table {{.Names}}\t{{.Status}}' 2>/dev/null | wc -l) running"
+echo "📦 Images: $(docker images --format 'table {{.Repository}}' 2>/dev/null | wc -l) total"
+```
+
+## 🎯 Workflow Examples
+
+### Daily DevOps Workflow
+```bash
+# Morning startup routine
+echo "alias morning='devops-health-check.sh && kubectl get nodes && docker ps && terraform --version'" >> ~/.bashrc
+
+# Project switching
+proj() {
+    cd ~/projects/$1
+    if [ -f .env ]; then source .env; fi
+    if [ -f kubeconfig ]; then export KUBECONFIG=$(pwd)/kubeconfig; fi
+    tmux new-session -d -s $1
+    tmux send-keys -t $1 "clear && ls -la" Enter
+    tmux attach -t $1
+}
+
+# Quick deployment
+deploy() {
+    kubectl apply -f k8s/
+    kubectl rollout status deployment/$1
+    kubectl get pods -l app=$1
+}
+
+# Infrastructure update
+infra-update() {
+    terraform plan -out=tfplan
+    read -p "Apply changes? (y/N): " -n 1 -r
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        terraform apply tfplan
+    fi
+}
+```
+
+## 🌟 Pro Tips
+
+### Terminal Productivity
+1. **Use tmux sessions** for different projects
+2. **Create custom scripts** for repetitive tasks
+3. **Use aliases** for common commands
+4. **Set up auto-completion** for all tools
+5. **Use history search** with `Ctrl+R`
+
+### Cloud Cost Optimization
+```bash
+# AWS cost checking aliases
+echo 'alias aws-cost="aws ce get-cost-and-usage --time-period Start=2024-01-01,End=2024-12-31 --granularity MONTHLY --metrics BlendedCost"' >> ~/.bashrc
+echo 'alias aws-unused="aws ec2 describe-instances --filters Name=instance-state-name,Values=stopped --query Reservations[].Instances[].[InstanceId,InstanceType]"' >> ~/.bashrc
+```
+
+### Security Reminders
+- **Rotate credentials** regularly
+- **Use IAM roles** instead of access keys when possible
+- **Enable MFA** on all cloud accounts
+- **Scan containers** before deployment
+- **Keep tools updated** to patch vulnerabilities
 
 ---
 
-<div align="center">
+This comprehensive DevOps toolkit will transform your Arch Hyprland Bare system into a powerful cloud engineering workstation. Start with the essentials and gradually add tools as your needs grow.
 
-**🛠️ DevOps Tools Guide - Arch Hyprland**
-
-*Install tools as needed for your specific workflow*
-
-[🏠 Back to Main](../README.md) • [📖 Documentation](../docs/) • [💬 Community](https://t.me/archlinux_ir)
-
-</div>
+*Happy DevOps-ing! 🚀*

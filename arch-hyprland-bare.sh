@@ -116,7 +116,7 @@ detect_hardware() {
     
     # GPU detection
     local gpu_info
-    gpu_info=$(lspci | grep -E "VGA|3D|Display" | head -1)
+    gpu_info=$(lspci | grep -E 'VGA|3D|Display' | head -1)
     if echo "$gpu_info" | grep -i nvidia >/dev/null; then
         GPU_VENDOR="nvidia"
     elif echo "$gpu_info" | grep -i amd >/dev/null; then

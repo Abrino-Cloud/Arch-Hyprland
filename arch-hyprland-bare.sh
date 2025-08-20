@@ -1,9 +1,8 @@
 #!/bin/bash
-# Arch Hyprland Bare - Complete Installation Script
-# Repository: https://github.com/Abrino-Cloud/Arch-Hyprland
-# Version: 2.2 - Final Working Version
+# Arch Hyprland Bare - Fresh Installation Script
+# Version: 3.0 - Clean rewrite
 
-set -eo pipefail
+set -e
 
 # Colors
 RED='\033[0;31m'
@@ -15,11 +14,8 @@ CYAN='\033[0;36m'
 WHITE='\033[1;37m'
 NC='\033[0m'
 
-# Configuration
-LOG_FILE="/tmp/arch-hyprland-install.log"
-REPO_URL="https://github.com/Abrino-Cloud/Arch-Hyprland"
-
 # Variables
+LOG_FILE="/tmp/arch-hyprland-install.log"
 HOSTNAME=""
 USERNAME=""
 USER_PASSWORD=""
@@ -36,7 +32,6 @@ TOTAL_RAM=""
 DISK_DEVICE=""
 USE_IRANIAN_DNS="yes"
 USE_IRANIAN_MIRRORS="yes"
-SELECTED_COUNTRY="Iran"
 INSTALL_DOTFILES=""
 DOTFILES_REPO=""
 DOTFILES_USERNAME=""
@@ -45,7 +40,7 @@ IRANIAN_DNS_PRIMARY="10.70.95.150"
 IRANIAN_DNS_SECONDARY="10.70.95.162"
 FALLBACK_DNS="1.1.1.1"
 
-# Core functions
+# Functions
 log() {
     echo -e "${CYAN}[$(date +'%H:%M:%S')]${NC} $1" | tee -a "$LOG_FILE"
 }
@@ -90,11 +85,6 @@ check_environment() {
         error "This script must be run from an Arch Linux ISO"
     fi
     
-    if [[ $EUID -eq 0 ]]; then
-        warning "Running as root - this is normal for Arch ISO environment"
-        info "The script will create a regular user account as specified"
-    fi
-    
     if ! ping -c 1 google.com >/dev/null 2>&1; then
         error "No internet connection. Please connect to WiFi/Ethernet first"
     fi
@@ -114,43 +104,42 @@ detect_hardware() {
         CPU_VENDOR="unknown"
     fi
     
-    # GPU detection - simplified
-    if lspci | grep -i nvidia > /dev/null; then
+    # GPU detection
+    if lspci | grep -i nvidia >/dev/null; then
         GPU_VENDOR="nvidia"
-    elif lspci | grep -i amd > /dev/null; then
+    elif lspci | grep -i amd >/dev/null; then
         GPU_VENDOR="amd"
-    elif lspci | grep -i intel > /dev/null; then
+    elif lspci | grep -i intel >/dev/null; then
         GPU_VENDOR="intel"
     else
         GPU_VENDOR="unknown"
     fi
     
     # WiFi detection
-    if lspci | grep -i wireless > /dev/null || lsusb | grep -i wireless > /dev/null; then
+    if lspci | grep -i wireless >/dev/null; then
         HAS_WIFI="yes"
     else
         HAS_WIFI="no"
     fi
     
     # Bluetooth detection
-    if lsusb | grep -i bluetooth > /dev/null; then
+    if lsusb | grep -i bluetooth >/dev/null; then
         HAS_BLUETOOTH="yes"
     else
         HAS_BLUETOOTH="no"
     fi
     
     # Laptop detection
-    if ls /sys/class/power_supply/ 2>/dev/null | grep -i bat > /dev/null; then
+    if ls /sys/class/power_supply/BAT* >/dev/null 2>&1; then
         IS_LAPTOP="yes"
     else
         IS_LAPTOP="no"
     fi
     
-    # RAM detection - simplified
-    TOTAL_RAM=$(free -g | awk 'NR==2 {print $2}')
+    # RAM detection
+    TOTAL_RAM=$(free -g | tail -n +2 | head -1 | awk '{print $2}')
     
-    info "Hardware detected: CPU=$CPU_VENDOR, GPU=$GPU_VENDOR, RAM=${TOTAL_RAM}GB, Laptop=$IS_LAPTOP"
-    success "Hardware detection completed"
+    success "Hardware detected: CPU=$CPU_VENDOR, GPU=$GPU_VENDOR, RAM=${TOTAL_RAM}GB"
 }
 
 get_user_input() {
@@ -159,23 +148,23 @@ get_user_input() {
     echo "This will install a complete Arch Linux system with Hyprland."
     echo -e "${YELLOW}⚠ This will FORMAT your entire disk!${NC}\n"
     
-    # Show detected hardware
+    # Show hardware
     echo -e "${CYAN}Detected Hardware:${NC}"
     echo "• CPU: $CPU_VENDOR"
-    echo "• GPU: $GPU_VENDOR"  
+    echo "• GPU: $GPU_VENDOR"
     echo "• RAM: ${TOTAL_RAM}GB"
-    echo "• Device Type: $([ "$IS_LAPTOP" = "yes" ] && echo "Laptop" || echo "Desktop")"
+    echo "• Type: $([ "$IS_LAPTOP" = "yes" ] && echo "Laptop" || echo "Desktop")"
     echo "• WiFi: $HAS_WIFI"
     echo ""
     
-    # Show available disks and ask user to choose
+    # Show disks
     echo -e "${CYAN}Available disks:${NC}"
     lsblk
     echo ""
-    echo -e "${YELLOW}⚠ WARNING: The selected disk will be COMPLETELY WIPED!${NC}"
+    echo -e "${YELLOW}⚠ WARNING: Selected disk will be COMPLETELY WIPED!${NC}"
     echo ""
     
-    # Ask for disk device - SIMPLE
+    # Get disk
     read -p "$(echo -e ${BLUE}💾 Enter disk name [nvme0n1]: ${NC})" DISK_NAME
     DISK_NAME=${DISK_NAME:-nvme0n1}
     DISK_DEVICE="/dev/$DISK_NAME"
@@ -183,18 +172,12 @@ get_user_input() {
     if [[ ! -b "$DISK_DEVICE" ]]; then
         error "Disk $DISK_DEVICE not found!"
     fi
-    
     echo -e "${GREEN}✓ Selected disk: $DISK_DEVICE${NC}"
+    echo ""
     
     # Get hostname
-    while [[ -z "$HOSTNAME" ]]; do
-        read -p "$(echo -e ${BLUE}🖥️  Enter hostname [arch-dev]: ${NC})" HOSTNAME
-        HOSTNAME=${HOSTNAME:-arch-dev}
-        if [[ ! "$HOSTNAME" =~ ^[a-zA-Z0-9-]+$ ]]; then
-            echo -e "${RED}Invalid hostname. Use only letters, numbers, and hyphens.${NC}"
-            HOSTNAME=""
-        fi
-    done
+    read -p "$(echo -e ${BLUE}🖥️  Enter hostname [arch-dev]: ${NC})" HOSTNAME
+    HOSTNAME=${HOSTNAME:-arch-dev}
     
     # Get username
     while [[ -z "$USERNAME" ]]; do
@@ -244,28 +227,22 @@ get_user_input() {
     read -p "$(echo -e ${BLUE}🌍 Timezone [Asia/Tehran]: ${NC})" TIMEZONE_INPUT
     TIMEZONE=${TIMEZONE_INPUT:-Asia/Tehran}
     
-    # DNS Configuration
+    # DNS
     echo ""
     echo -e "${CYAN}DNS Configuration:${NC}"
     echo "1. Iranian Anti-Sanctions DNS (Recommended)"
-    echo "2. Country-based DNS"
-    read -p "$(echo -e ${BLUE}🌐 Choose DNS option [1]: ${NC})" DNS_CHOICE
-    DNS_CHOICE=${DNS_CHOICE:-1}
-    
+    echo "2. Default DNS"
+    read -p "$(echo -e ${BLUE}🌐 Choose [1]: ${NC})" DNS_CHOICE
     if [[ "$DNS_CHOICE" == "2" ]]; then
         USE_IRANIAN_DNS="no"
-        read -p "$(echo -e ${BLUE}🌍 Enter your country [Iran]: ${NC})" SELECTED_COUNTRY
-        SELECTED_COUNTRY=${SELECTED_COUNTRY:-Iran}
     fi
     
-    # Mirror Configuration
+    # Mirrors
     echo ""
     echo -e "${CYAN}Mirror Configuration:${NC}"
     echo "1. Iranian mirrors (Recommended)"
-    echo "2. Country-based mirrors"
-    read -p "$(echo -e ${BLUE}🪞 Choose mirror option [1]: ${NC})" MIRROR_CHOICE
-    MIRROR_CHOICE=${MIRROR_CHOICE:-1}
-    
+    echo "2. Default mirrors"
+    read -p "$(echo -e ${BLUE}🪞 Choose [1]: ${NC})" MIRROR_CHOICE
     if [[ "$MIRROR_CHOICE" == "2" ]]; then
         USE_IRANIAN_MIRRORS="no"
     fi
@@ -288,9 +265,8 @@ get_user_input() {
     echo "Timezone: $TIMEZONE"
     echo "Target Disk: $DISK_DEVICE"
     echo "Hardware: $CPU_VENDOR CPU, $GPU_VENDOR GPU, ${TOTAL_RAM}GB RAM"
-    echo "Device Type: $([ "$IS_LAPTOP" = "yes" ] && echo "Laptop" || echo "Desktop")"
-    echo "DNS: $([ "$USE_IRANIAN_DNS" = "yes" ] && echo "Iranian Anti-Sanctions" || echo "Country-based")"
-    echo "Mirrors: $([ "$USE_IRANIAN_MIRRORS" = "yes" ] && echo "Iranian optimized" || echo "Country-based")"
+    echo "DNS: $([ "$USE_IRANIAN_DNS" = "yes" ] && echo "Iranian Anti-Sanctions" || echo "Default")"
+    echo "Mirrors: $([ "$USE_IRANIAN_MIRRORS" = "yes" ] && echo "Iranian optimized" || echo "Default")"
     if [[ "$INSTALL_DOTFILES" = "yes" ]]; then
         echo "Dotfiles: $DOTFILES_REPO"
     fi
@@ -305,7 +281,7 @@ get_user_input() {
 }
 
 configure_network() {
-    log "Configuring network optimizations..."
+    log "Configuring network..."
     
     if [[ "$USE_IRANIAN_DNS" == "yes" ]]; then
         cat > /etc/resolv.conf << EOF
@@ -331,22 +307,21 @@ EOF
 }
 
 setup_disk() {
-    log "Setting up disk partitioning and encryption..."
+    log "Setting up disk..."
     
-    # Final safety check
     echo ""
-    echo -e "${RED}🚨 FINAL SAFETY CHECK 🚨${NC}"
+    echo -e "${RED}🚨 FINAL WARNING 🚨${NC}"
     echo -e "${WHITE}About to FORMAT: $DISK_DEVICE${NC}"
     echo ""
-    lsblk "$DISK_DEVICE" 2>/dev/null || echo "Device: $DISK_DEVICE"
+    lsblk "$DISK_DEVICE"
     echo ""
     
-    read -p "$(echo -e ${RED}Type 'FORMAT' to confirm disk formatting: ${NC})" FORMAT_CONFIRM
+    read -p "$(echo -e ${RED}Type 'FORMAT' to confirm: ${NC})" FORMAT_CONFIRM
     if [[ "$FORMAT_CONFIRM" != "FORMAT" ]]; then
-        error "Installation cancelled. Disk formatting not confirmed."
+        error "Installation cancelled"
     fi
     
-    log "User confirmed disk formatting. Proceeding..."
+    log "Formatting disk..."
     
     umount -A --recursive /mnt 2>/dev/null || true
     
@@ -388,7 +363,7 @@ setup_disk() {
 }
 
 install_base_system() {
-    log "Installing base Arch Linux system..."
+    log "Installing base system..."
     
     base_packages=(
         "base" "linux" "linux-firmware" "linux-headers"
@@ -406,7 +381,7 @@ install_base_system() {
     pacstrap -K /mnt "${base_packages[@]}"
     genfstab -U /mnt >> /mnt/etc/fstab
     
-    success "Base system installation completed"
+    success "Base system installed"
 }
 
 configure_base_system() {
@@ -477,7 +452,7 @@ EOF
 }
 
 install_aur_helper() {
-    log "Installing AUR helper (yay)..."
+    log "Installing AUR helper..."
     
     arch-chroot /mnt /bin/bash << EOF
 sudo -u $USERNAME bash << 'AUR_EOF'
@@ -494,7 +469,7 @@ EOF
 }
 
 install_graphics_drivers() {
-    log "Installing graphics drivers for $GPU_VENDOR..."
+    log "Installing graphics drivers..."
     
     arch-chroot /mnt /bin/bash << EOF
 case "$GPU_VENDOR" in
@@ -752,10 +727,7 @@ sudo -u $USERNAME tee /home/$USERNAME/.config/waybar/config > /dev/null << 'WAYB
             "2": "󰲢",
             "3": "󰲤",
             "4": "󰲦",
-            "5": "󰲨",
-            "urgent": "",
-            "focused": "",
-            "default": ""
+            "5": "󰲨"
         }
     },
     
@@ -991,7 +963,7 @@ EOF
 }
 
 final_optimizations() {
-    log "Applying final optimizations..."
+    log "Applying optimizations..."
     
     arch-chroot /mnt /bin/bash << EOF
 tee /etc/systemd/zram-generator.conf > /dev/null << 'ZRAM_EOF'
@@ -1019,7 +991,7 @@ sudo -u $USERNAME mkdir -p /home/$USERNAME/bin
 
 sudo -u $USERNAME tee /home/$USERNAME/bin/update-system > /dev/null << 'UPDATE_EOF'
 #!/bin/bash
-echo "📄 Updating Arch Hyprland system..."
+echo "📄 Updating system..."
 sudo pacman -Syu
 yay -Syu
 if command -v chezmoi >/dev/null; then
@@ -1032,7 +1004,7 @@ chmod +x /home/$USERNAME/bin/update-system
 echo 'export PATH="$HOME/bin:$PATH"' >> /home/$USERNAME/.bashrc
 EOF
     
-    success "Final optimizations completed"
+    success "Optimizations applied"
 }
 
 installation_complete() {
@@ -1052,12 +1024,6 @@ installation_complete() {
 ║  ✓ tmux workflow (no neovim)                                ║
 ║  ✓ Ghostty terminal with Persian support                    ║
 ║  ✓ Full disk encryption with BTRFS                          ║
-║                                                               ║
-║  Next steps:                                                  ║
-║  1. Remove the USB drive                                      ║
-║  2. Reboot your system                                        ║
-║  3. Login with your credentials                               ║
-║  4. Install additional applications as needed                 ║
 ║                                                               ║
 ║  Useful commands:                                             ║
 ║  • Super+Return: Open Ghostty terminal                       ║
@@ -1083,18 +1049,18 @@ EOF
     echo -e "${CYAN}Installation Summary:${NC}"
     echo "• Hostname: $HOSTNAME"
     echo "• Username: $USERNAME"
-    echo "• Hardware: $CPU_VENDOR CPU, $GPU_VENDOR GPU"
-    echo "• Type: $([ "$IS_LAPTOP" = "yes" ] && echo "Laptop" || echo "Desktop") with ${TOTAL_RAM}GB RAM"
+    echo "• Hardware: $CPU_VENDOR CPU, $GPU_VENDOR GPU, ${TOTAL_RAM}GB RAM"
+    echo "• Type: $([ "$IS_LAPTOP" = "yes" ] && echo "Laptop" || echo "Desktop")"
     echo "• Display Manager: Ly (minimal TUI)"
     echo "• Language: English + Persian support"
     echo "• Dotfiles: $([ "$INSTALL_DOTFILES" = "yes" ] && echo "Configured" || echo "Not configured")"
     echo ""
     
-    info "Installation log saved to: $LOG_FILE"
+    info "Installation log: $LOG_FILE"
     
     read -p "$(echo -e ${WHITE}Reboot now? [Y/n]: ${NC})" REBOOT_NOW
     if [[ ! "$REBOOT_NOW" =~ ^[Nn]$ ]]; then
-        log "Rebooting system..."
+        log "Rebooting..."
         reboot
     else
         log "Installation completed. Please reboot when ready."
@@ -1103,7 +1069,7 @@ EOF
 
 main() {
     show_header
-    log "Starting Arch Hyprland installation..."
+    log "Starting installation..."
     
     check_environment
     detect_hardware
@@ -1125,55 +1091,6 @@ main() {
 }
 
 trap 'error "Installation failed at line $LINENO. Check $LOG_FILE for details."' ERR
-
-show_help() {
-    cat << 'EOF'
-Arch Hyprland Bare - Complete Installation Script
-
-Usage: ./arch-hyprland-bare.sh [OPTIONS]
-
-This script installs a complete Arch Linux system with:
-• Zero-animation Hyprland compositor
-• Catppuccin Mocha theme
-• Iranian DNS and mirror optimization
-• Essential development applications
-• Hardware-specific drivers
-• Full disk encryption with BTRFS
-
-Prerequisites:
-• Boot from Arch Linux ISO
-• Connect to internet
-• Have at least 25GB free disk space
-
-Options:
-  -h, --help     Show this help message
-  --debug        Enable debug output
-
-Examples:
-  ./arch-hyprland-bare.sh
-  curl -L https://raw.githubusercontent.com/Abrino-Cloud/Arch-Hyprland/main/arch-hyprland-bare.sh | bash
-
-For more information:
-  GitHub: https://github.com/Abrino-Cloud/Arch-Hyprland
-  Community: https://t.me/archlinux_ir
-EOF
-}
-
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        -h|--help)
-            show_help
-            exit 0
-            ;;
-        --debug)
-            set -x
-            shift
-            ;;
-        *)
-            error "Unknown option: $1. Use -h for help."
-            ;;
-    esac
-done
 
 echo "Arch Hyprland installation started at $(date)" > "$LOG_FILE"
 

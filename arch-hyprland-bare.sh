@@ -167,10 +167,63 @@ detect_hardware() {
     # RAM detection
     TOTAL_RAM=$(free -m | awk 'NR==2{printf "%.0f", $2/1024}')
     
-    # Disk detection
-    DISK_DEVICE=$(lsblk -d -n -o NAME,SIZE,TYPE | awk '$3=="disk" {print "/dev/"$1; exit}')
+    # Smart disk detection - exclude USB drives and prefer NVMe/SATA
+    log "Detecting available disks..."
+    echo ""
+    echo -e "${CYAN}Available disks:${NC}"
+    
+    # List all block devices with details
+    lsblk -d -o NAME,SIZE,TYPE,TRAN,MODEL | grep -E "disk" | while read -r line; do
+        local device_name=$(echo "$line" | awk '{print $1}')
+        local device_path="/dev/$device_name"
+        local device_info=$(echo "$line" | awk '{print $2, $3, $4, $5}')
+        
+        # Check if it's likely a USB device
+        if echo "$line" | grep -q "usb\|USB"; then
+            echo -e "  ${YELLOW}$device_path${NC} - $device_info ${RED}(USB - SKIP)${NC}"
+        else
+            echo -e "  ${GREEN}$device_path${NC} - $device_info ${BLUE}(Available)${NC}"
+        fi
+    done
+    
+    echo ""
+    
+    # Automatic selection with safety checks
+    DISK_DEVICE=""
+    
+    # Prefer NVMe drives first
+    for device in /dev/nvme0n* /dev/nvme1n*; do
+        if [[ -b "$device" ]] && [[ "$device" =~ nvme[0-9]+n[0-9]+$ ]]; then
+            # Check if it's not a USB device
+            local device_name=$(basename "$device")
+            if ! lsblk -d -o NAME,TRAN | grep "$device_name" | grep -q "usb"; then
+                DISK_DEVICE="$device"
+                break
+            fi
+        fi
+    done
+    
+    # If no NVMe found, look for SATA drives (but exclude USB)
+    if [[ -z "$DISK_DEVICE" ]]; then
+        for device in /dev/sd*; do
+            if [[ -b "$device" ]] && [[ "$device" =~ sd[a-z]$ ]]; then
+                local device_name=$(basename "$device")
+                # Skip if it's a USB device
+                if ! lsblk -d -o NAME,TRAN | grep "$device_name" | grep -q "usb"; then
+                    DISK_DEVICE="$device"
+                    break
+                fi
+            fi
+        done
+    fi
+    
+    # If still no device found, manual selection required
+    if [[ -z "$DISK_DEVICE" ]]; then
+        error "No suitable disk found automatically. Please run 'lsblk' and specify manually."
+    fi
     
     info "Hardware detected: CPU=$CPU_VENDOR, GPU=$GPU_VENDOR, RAM=${TOTAL_RAM}GB, Laptop=$IS_LAPTOP"
+    warning "Auto-detected target disk: $DISK_DEVICE"
     success "Hardware detection completed"
 }
 
@@ -188,8 +241,62 @@ get_user_input() {
     echo "• RAM: ${TOTAL_RAM}GB"
     echo "• Device Type: $([ "$IS_LAPTOP" = "yes" ] && echo "Laptop" || echo "Desktop")"
     echo "• WiFi: $HAS_WIFI"
-    echo "• Target Disk: $DISK_DEVICE"
+    echo "• Auto-detected disk: $DISK_DEVICE"
     echo ""
+    
+    # Disk selection confirmation
+    echo -e "${YELLOW}⚠ CRITICAL: Disk Selection${NC}"
+    echo -e "${RED}The selected disk will be COMPLETELY WIPED!${NC}"
+    echo ""
+    
+    # Show all available disks for user confirmation
+    echo -e "${CYAN}All available disks:${NC}"
+    lsblk -d -o NAME,SIZE,TYPE,TRAN,MODEL | grep -E "NAME|disk"
+    echo ""
+    
+    # Ask user to confirm or change disk
+    read -p "$(echo -e ${BLUE}💾 Use detected disk $DISK_DEVICE? [Y/n/manual]: ${NC})" DISK_CONFIRM
+    
+    if [[ "$DISK_CONFIRM" =~ ^[Nn]$ ]]; then
+        echo "Installation cancelled by user."
+        exit 0
+    elif [[ "$DISK_CONFIRM" =~ ^[Mm]$ ]] || [[ "$DISK_CONFIRM" =~ ^[Mm]anual$ ]]; then
+        echo ""
+        echo -e "${CYAN}Available disks for manual selection:${NC}"
+        lsblk -d -o NAME,SIZE,TYPE,TRAN,MODEL | grep disk | while read -r line; do
+            local device_name=$(echo "$line" | awk '{print $1}')
+            local device_path="/dev/$device_name"
+            local device_info=$(echo "$line" | awk '{print $2, $3, $4, $5}')
+            
+            if echo "$line" | grep -q "usb\|USB"; then
+                echo -e "  ${RED}$device_path${NC} - $device_info ${RED}(USB - DANGEROUS!)${NC}"
+            else
+                echo -e "  ${GREEN}$device_path${NC} - $device_info ${BLUE}(Safe)${NC}"
+            fi
+        done
+        echo ""
+        
+        while true; do
+            read -p "$(echo -e ${BLUE}💾 Enter disk path (e.g., /dev/nvme0n1): ${NC})" MANUAL_DISK
+            if [[ -b "$MANUAL_DISK" ]]; then
+                # Double check it's not USB
+                local device_name=$(basename "$MANUAL_DISK")
+                if lsblk -d -o NAME,TRAN | grep "$device_name" | grep -q "usb"; then
+                    echo -e "${RED}WARNING: $MANUAL_DISK appears to be a USB device!${NC}"
+                    read -p "$(echo -e ${RED}Are you ABSOLUTELY sure? [type 'yes' to confirm]: ${NC})" USB_CONFIRM
+                    if [[ "$USB_CONFIRM" == "yes" ]]; then
+                        DISK_DEVICE="$MANUAL_DISK"
+                        break
+                    fi
+                else
+                    DISK_DEVICE="$MANUAL_DISK"
+                    break
+                fi
+            else
+                echo -e "${RED}Invalid disk path. Please try again.${NC}"
+            fi
+        done
+    fi
     
     # Get hostname
     while [[ -z "$HOSTNAME" ]]; do
@@ -358,6 +465,35 @@ EOF
 # Disk partitioning and encryption
 setup_disk() {
     log "Setting up disk partitioning and encryption..."
+    
+    # Final safety check
+    echo ""
+    echo -e "${RED}🚨 FINAL SAFETY CHECK 🚨${NC}"
+    echo -e "${WHITE}About to FORMAT: $DISK_DEVICE${NC}"
+    
+    # Show disk info one more time
+    echo ""
+    lsblk "$DISK_DEVICE" 2>/dev/null || echo "Device: $DISK_DEVICE"
+    echo ""
+    
+    # Check if it's a USB device one final time
+    local device_name=$(basename "$DISK_DEVICE")
+    if lsblk -d -o NAME,TRAN | grep "$device_name" | grep -q "usb"; then
+        echo -e "${RED}⚠ WARNING: This appears to be a USB device!${NC}"
+        echo -e "${RED}⚠ Are you installing to a USB drive intentionally?${NC}"
+        echo ""
+        read -p "$(echo -e ${RED}Type 'FORMAT USB' to continue with USB installation: ${NC})" USB_FINAL_CONFIRM
+        if [[ "$USB_FINAL_CONFIRM" != "FORMAT USB" ]]; then
+            error "Installation cancelled for safety. USB device not confirmed."
+        fi
+    else
+        read -p "$(echo -e ${RED}Type 'FORMAT' to confirm disk formatting: ${NC})" FORMAT_CONFIRM
+        if [[ "$FORMAT_CONFIRM" != "FORMAT" ]]; then
+            error "Installation cancelled. Disk formatting not confirmed."
+        fi
+    fi
+    
+    log "User confirmed disk formatting. Proceeding..."
     
     # Unmount any existing mounts
     umount -A --recursive /mnt 2>/dev/null || true

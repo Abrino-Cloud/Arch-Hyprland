@@ -3,15 +3,10 @@
 # Repository: https://github.com/Abrino-Cloud/Arch-Hyprland
 # Short link: https://sh.abrino.cloud/arch-1
 # Inspired by Omarchy but optimized for Iranian developers
-# Version: 2.0
+# Version: 2.1 - Fixed for curl | bash execution
 
-set -euo pipefail
-
-# Handle being run via curl | bash
-if [[ "${BASH_SOURCE[0]:-}" != "${0}" ]] || [[ ! -t 0 ]]; then
-    # Running via pipe, be more careful with variables
-    set +u  # Temporarily disable unbound variable check
-fi
+# Basic error handling (avoid -u for piped execution)
+set -eo pipefail
 
 # Colors for beautiful output
 RED='\033[0;31m'
@@ -24,10 +19,8 @@ WHITE='\033[1;37m'
 NC='\033[0m' # No Color
 
 # Script configuration
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)" 2>/dev/null || SCRIPT_DIR="/tmp"
 LOG_FILE="/tmp/arch-hyprland-install.log"
 REPO_URL="https://github.com/Abrino-Cloud/Arch-Hyprland"
-REPO_RAW="https://raw.githubusercontent.com/Abrino-Cloud/Arch-Hyprland/main"
 
 # System variables (will be set by user input)
 HOSTNAME=""
@@ -112,8 +105,8 @@ check_environment() {
     fi
     
     if [[ $EUID -eq 0 ]]; then
-        warning "Running as root - this is acceptable for Arch ISO environment"
-        warning "The script will create a regular user account as specified"
+        warning "Running as root - this is normal for Arch ISO environment"
+        info "The script will create a regular user account as specified"
     fi
     
     # Check internet connection
@@ -138,7 +131,8 @@ detect_hardware() {
     fi
     
     # GPU detection
-    local gpu_info=$(lspci | grep -E "VGA|3D|Display" | head -1)
+    local gpu_info
+    gpu_info=$(lspci | grep -E "VGA|3D|Display" | head -1)
     if echo "$gpu_info" | grep -i nvidia >/dev/null; then
         GPU_VENDOR="nvidia"
     elif echo "$gpu_info" | grep -i amd >/dev/null; then
@@ -461,36 +455,6 @@ echo "LANG=$LOCALE" > /etc/locale.conf
 
 # Set keymap
 echo "KEYMAP=$KEYMAP" > /etc/vconsole.conf
-
-# Configure Persian fonts and input
-cat > /etc/fonts/local.conf << FONTS_EOF
-<?xml version="1.0"?>
-<!DOCTYPE fontconfig SYSTEM "fonts.dtd">
-<fontconfig>
-  <!-- Persian font fallback -->
-  <alias>
-    <family>serif</family>
-    <prefer>
-      <family>Noto Serif</family>
-      <family>Vazirmatn</family>
-    </prefer>
-  </alias>
-  <alias>
-    <family>sans-serif</family>
-    <prefer>
-      <family>Noto Sans</family>
-      <family>Vazirmatn</family>
-    </prefer>
-  </alias>
-  <alias>
-    <family>monospace</family>
-    <prefer>
-      <family>JetBrainsMono Nerd Font</family>
-      <family>Vazirmatn</family>
-    </prefer>
-  </alias>
-</fontconfig>
-FONTS_EOF
 
 # Set hostname
 echo "$HOSTNAME" > /etc/hostname
@@ -1211,7 +1175,7 @@ EOF
 
 # Setup dotfiles with SSH support
 setup_dotfiles() {
-    if [[ "$INSTALL_DOTFILES" == "yes" && -n "$DOTFILES_REPO" ]]; then
+    if [[ "$INSTALL_DOTFILES" == "yes" ]] && [[ -n "$DOTFILES_REPO" ]]; then
         log "Setting up dotfiles with chezmoi (SSH)..."
         
         arch-chroot /mnt /bin/bash << EOF
@@ -1219,7 +1183,7 @@ sudo -u $USERNAME bash << 'DOTFILES_EOF'
 cd /home/$USERNAME
 
 # Configure SSH for Git if credentials provided
-if [[ -n "$DOTFILES_USERNAME" && -n "$DOTFILES_EMAIL" ]]; then
+if [[ -n "$DOTFILES_USERNAME" ]] && [[ -n "$DOTFILES_EMAIL" ]]; then
     # Setup Git credentials
     git config --global user.name "$DOTFILES_USERNAME"
     git config --global user.email "$DOTFILES_EMAIL"
@@ -1298,7 +1262,7 @@ EOF
     success "Final optimizations completed"
 }
 
-# Installation completion with application guide
+# Installation completion
 installation_complete() {
     clear
     echo -e "${GREEN}"
@@ -1328,6 +1292,7 @@ installation_complete() {
 ║  • Super+Space: Application launcher                         ║
 ║  • Super+W: Chromium browser                                 ║
 ║  • Super+I: Toggle Persian keyboard                          ║
+║  • Alt+Shift: Quick keyboard toggle                          ║
 ║  • tm: Start tmux session                                     ║
 ║  • lg: Lazygit                                               ║
 ║                                                               ║
@@ -1457,7 +1422,7 @@ Options:
 
 Examples:
   ./arch-hyprland-bare.sh
-  curl -L https://sh.abrino.cloud/arch-1 | bash
+  curl -L https://raw.githubusercontent.com/Abrino-Cloud/Arch-Hyprland/main/arch-hyprland-bare.sh | bash
 
 For more information:
   GitHub: https://github.com/Abrino-Cloud/Arch-Hyprland

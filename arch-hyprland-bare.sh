@@ -192,11 +192,11 @@ detect_hardware() {
     DISK_DEVICE=""
     
     # Prefer NVMe drives first
-    for device in /dev/nvme0n* /dev/nvme1n*; do
-        if [[ -b "$device" ]] && [[ "$device" =~ nvme[0-9]+n[0-9]+$ ]]; then
+    for device in /dev/nvme0n1 /dev/nvme1n1 /dev/nvme0n2; do
+        if [[ -b "$device" ]]; then
             # Check if it's not a USB device
             local device_name=$(basename "$device")
-            if ! lsblk -d -o NAME,TRAN | grep "$device_name" | grep -q "usb"; then
+            if ! lsblk -d -o NAME,TRAN 2>/dev/null | grep "$device_name" | grep -q "usb"; then
                 DISK_DEVICE="$device"
                 break
             fi
@@ -205,11 +205,11 @@ detect_hardware() {
     
     # If no NVMe found, look for SATA drives (but exclude USB)
     if [[ -z "$DISK_DEVICE" ]]; then
-        for device in /dev/sd*; do
-            if [[ -b "$device" ]] && [[ "$device" =~ sd[a-z]$ ]]; then
+        for device in /dev/sdb /dev/sdc /dev/sdd; do
+            if [[ -b "$device" ]]; then
                 local device_name=$(basename "$device")
                 # Skip if it's a USB device
-                if ! lsblk -d -o NAME,TRAN | grep "$device_name" | grep -q "usb"; then
+                if ! lsblk -d -o NAME,TRAN 2>/dev/null | grep "$device_name" | grep -q "usb"; then
                     DISK_DEVICE="$device"
                     break
                 fi

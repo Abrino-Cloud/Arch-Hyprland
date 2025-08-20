@@ -148,7 +148,7 @@ detect_hardware() {
     fi
     
     # RAM detection
-    TOTAL_RAM=$(free -m | awk 'NR==2{printf "%.0f", $2/1024}')
+    TOTAL_RAM=$(free -m | awk 'NR==2 {printf "%.0f", $2/1024}')
     
     # Disk detection - Smart selection
     log "Detecting available disks..."

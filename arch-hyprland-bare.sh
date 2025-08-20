@@ -148,7 +148,7 @@ detect_hardware() {
     fi
     
     # RAM detection
-    TOTAL_RAM=$(free -m | awk 'NR==2 {printf "%.0f", $2/1024}')
+    TOTAL_RAM=$(free -m | awk 'NR==2 {print int($2/1024)}')
     
     # Disk detection - Smart selection
     log "Detecting available disks..."
@@ -160,28 +160,15 @@ detect_hardware() {
     
     # Prefer NVMe drives
     DISK_DEVICE=""
-    for device in /dev/nvme0n1 /dev/nvme1n1; do
-        if [[ -b "$device" ]]; then
-            DISK_DEVICE="$device"
-            break
-        fi
-    done
-    
-    # If no NVMe, look for non-USB SATA
-    if [[ -z "$DISK_DEVICE" ]]; then
-        for device in /dev/sdb /dev/sdc /dev/sdd; do
-            if [[ -b "$device" ]]; then
-                device_name=$(basename "$device")
-                if ! lsblk -d -o NAME,TRAN 2>/dev/null | grep "$device_name" | grep -q "usb"; then
-                    DISK_DEVICE="$device"
-                    break
-                fi
-            fi
-        done
-    fi
-    
-    # Last resort - but warn about USB
-    if [[ -z "$DISK_DEVICE" ]]; then
+    if [[ -b "/dev/nvme0n1" ]]; then
+        DISK_DEVICE="/dev/nvme0n1"
+    elif [[ -b "/dev/nvme1n1" ]]; then
+        DISK_DEVICE="/dev/nvme1n1"
+    elif [[ -b "/dev/sdb" ]]; then
+        DISK_DEVICE="/dev/sdb"
+    elif [[ -b "/dev/sdc" ]]; then
+        DISK_DEVICE="/dev/sdc"
+    else
         DISK_DEVICE="/dev/sda"
         warning "Only /dev/sda available - may be USB drive!"
     fi

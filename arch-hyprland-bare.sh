@@ -7,6 +7,12 @@
 
 set -euo pipefail
 
+# Handle being run via curl | bash
+if [[ "${BASH_SOURCE[0]:-}" != "${0}" ]] || [[ ! -t 0 ]]; then
+    # Running via pipe, be more careful with variables
+    set +u  # Temporarily disable unbound variable check
+fi
+
 # Colors for beautiful output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -18,7 +24,7 @@ WHITE='\033[1;37m'
 NC='\033[0m' # No Color
 
 # Script configuration
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)" 2>/dev/null || SCRIPT_DIR="/tmp"
 LOG_FILE="/tmp/arch-hyprland-install.log"
 REPO_URL="https://github.com/Abrino-Cloud/Arch-Hyprland"
 REPO_RAW="https://raw.githubusercontent.com/Abrino-Cloud/Arch-Hyprland/main"
@@ -106,7 +112,8 @@ check_environment() {
     fi
     
     if [[ $EUID -eq 0 ]]; then
-        error "This script should not be run as root"
+        warning "Running as root - this is acceptable for Arch ISO environment"
+        warning "The script will create a regular user account as specified"
     fi
     
     # Check internet connection

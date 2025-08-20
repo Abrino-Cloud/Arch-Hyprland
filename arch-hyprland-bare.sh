@@ -114,68 +114,42 @@ detect_hardware() {
         CPU_VENDOR="unknown"
     fi
     
-    # GPU detection
-    local gpu_info
-    gpu_info=$(lspci | grep -E 'VGA|3D|Display' | head -1)
-    if echo "$gpu_info" | grep -i nvidia >/dev/null; then
+    # GPU detection - simplified
+    if lspci | grep -i nvidia > /dev/null; then
         GPU_VENDOR="nvidia"
-    elif echo "$gpu_info" | grep -i amd >/dev/null; then
+    elif lspci | grep -i amd > /dev/null; then
         GPU_VENDOR="amd"
-    elif echo "$gpu_info" | grep -i intel >/dev/null; then
+    elif lspci | grep -i intel > /dev/null; then
         GPU_VENDOR="intel"
     else
         GPU_VENDOR="unknown"
     fi
     
     # WiFi detection
-    if lspci | grep -i wireless >/dev/null || lsusb | grep -i wireless >/dev/null; then
+    if lspci | grep -i wireless > /dev/null || lsusb | grep -i wireless > /dev/null; then
         HAS_WIFI="yes"
     else
         HAS_WIFI="no"
     fi
     
     # Bluetooth detection
-    if lsusb | grep -i bluetooth >/dev/null || dmesg | grep -i bluetooth >/dev/null 2>&1; then
+    if lsusb | grep -i bluetooth > /dev/null; then
         HAS_BLUETOOTH="yes"
     else
         HAS_BLUETOOTH="no"
     fi
     
     # Laptop detection
-    if ls /sys/class/power_supply/ 2>/dev/null | grep -i bat >/dev/null; then
+    if ls /sys/class/power_supply/ 2>/dev/null | grep -i bat > /dev/null; then
         IS_LAPTOP="yes"
     else
         IS_LAPTOP="no"
     fi
     
-    # RAM detection
-    TOTAL_RAM=$(free -m | awk 'NR==2 {print int($2/1024)}')
-    
-    # Disk detection - Smart selection
-    log "Detecting available disks..."
-    echo ""
-    echo -e "${CYAN}Available disks:${NC}"
-    lsblk -d -o NAME,SIZE,TYPE,TRAN,MODEL | head -1
-    lsblk -d -o NAME,SIZE,TYPE,TRAN,MODEL | grep disk
-    echo ""
-    
-    # Prefer NVMe drives
-    DISK_DEVICE=""
-    if [[ -b "/dev/nvme0n1" ]]; then
-        DISK_DEVICE="/dev/nvme0n1"
-    elif [[ -b "/dev/nvme1n1" ]]; then
-        DISK_DEVICE="/dev/nvme1n1"
-    elif [[ -b "/dev/sdb" ]]; then
-        DISK_DEVICE="/dev/sdb"
-    elif [[ -b "/dev/sdc" ]]; then
-        DISK_DEVICE="/dev/sdc"
-    else
-        DISK_DEVICE="/dev/sda"
-        warning "Only /dev/sda available - may be USB drive!"
-    fi
+    # RAM detection - simplified
+    TOTAL_RAM=$(free -g | awk 'NR==2 {print $2}')
     
     info "Hardware detected: CPU=$CPU_VENDOR, GPU=$GPU_VENDOR, RAM=${TOTAL_RAM}GB, Laptop=$IS_LAPTOP"
-    warning "Auto-detected target disk: $DISK_DEVICE"
     success "Hardware detection completed"
 }
 
@@ -192,39 +166,34 @@ get_user_input() {
     echo "• RAM: ${TOTAL_RAM}GB"
     echo "• Device Type: $([ "$IS_LAPTOP" = "yes" ] && echo "Laptop" || echo "Desktop")"
     echo "• WiFi: $HAS_WIFI"
-    echo "• Auto-detected disk: $DISK_DEVICE"
     echo ""
     
-    # Disk selection
-    echo -e "${YELLOW}⚠ CRITICAL: Disk Selection${NC}"
-    echo -e "${RED}The selected disk will be COMPLETELY WIPED!${NC}"
+    # Show available disks and ask user to choose
+    echo -e "${CYAN}Available disks:${NC}"
+    lsblk -d -o NAME,SIZE,TYPE,MODEL
     echo ""
-    echo -e "${CYAN}All available disks:${NC}"
-    lsblk -d -o NAME,SIZE,TYPE,TRAN,MODEL | head -1
-    lsblk -d -o NAME,SIZE,TYPE,TRAN,MODEL | grep disk
+    echo -e "${YELLOW}⚠ WARNING: The selected disk will be COMPLETELY WIPED!${NC}"
     echo ""
     
-    read -p "$(echo -e ${BLUE}💾 Use detected disk $DISK_DEVICE? [Y/n/manual]: ${NC})" DISK_CONFIRM
-    
-    if [[ "$DISK_CONFIRM" =~ ^[Nn]$ ]]; then
-        echo "Installation cancelled by user."
-        exit 0
-    elif [[ "$DISK_CONFIRM" =~ ^[Mm]$ ]]; then
-        echo ""
-        echo -e "${CYAN}Available disks for manual selection:${NC}"
-        lsblk -d -o NAME,SIZE,TYPE,TRAN,MODEL | grep disk
-        echo ""
+    # Ask for disk device
+    while [[ -z "$DISK_DEVICE" ]]; do
+        read -p "$(echo -e ${BLUE}💾 Enter disk name (e.g., nvme0n1, sda): ${NC})" DISK_NAME
         
-        while true; do
-            read -p "$(echo -e ${BLUE}💾 Enter disk path (e.g., /dev/nvme0n1): ${NC})" MANUAL_DISK
-            if [[ -b "$MANUAL_DISK" ]]; then
-                DISK_DEVICE="$MANUAL_DISK"
-                break
-            else
-                echo -e "${RED}Invalid disk path. Please try again.${NC}"
-            fi
-        done
-    fi
+        if [[ -z "$DISK_NAME" ]]; then
+            # Default to nvme0n1 if nothing entered
+            DISK_NAME="nvme0n1"
+        fi
+        
+        DISK_DEVICE="/dev/$DISK_NAME"
+        
+        if [[ -b "$DISK_DEVICE" ]]; then
+            echo -e "${GREEN}✓ Selected disk: $DISK_DEVICE${NC}"
+            break
+        else
+            echo -e "${RED}✗ Disk $DISK_DEVICE not found. Please try again.${NC}"
+            DISK_DEVICE=""
+        fi
+    done
     
     # Get hostname
     while [[ -z "$HOSTNAME" ]]; do

@@ -162,7 +162,7 @@ get_user_input() {
     # Show detected hardware
     echo -e "${CYAN}Detected Hardware:${NC}"
     echo "• CPU: $CPU_VENDOR"
-    echo "• GPU: $GPU_VENDOR"
+    echo "• GPU: $GPU_VENDOR"  
     echo "• RAM: ${TOTAL_RAM}GB"
     echo "• Device Type: $([ "$IS_LAPTOP" = "yes" ] && echo "Laptop" || echo "Desktop")"
     echo "• WiFi: $HAS_WIFI"
@@ -170,30 +170,21 @@ get_user_input() {
     
     # Show available disks and ask user to choose
     echo -e "${CYAN}Available disks:${NC}"
-    lsblk -d -o NAME,SIZE,TYPE,MODEL
+    lsblk
     echo ""
     echo -e "${YELLOW}⚠ WARNING: The selected disk will be COMPLETELY WIPED!${NC}"
     echo ""
     
-    # Ask for disk device
-    while [[ -z "$DISK_DEVICE" ]]; do
-        read -p "$(echo -e ${BLUE}💾 Enter disk name (e.g., nvme0n1, sda): ${NC})" DISK_NAME
-        
-        if [[ -z "$DISK_NAME" ]]; then
-            # Default to nvme0n1 if nothing entered
-            DISK_NAME="nvme0n1"
-        fi
-        
-        DISK_DEVICE="/dev/$DISK_NAME"
-        
-        if [[ -b "$DISK_DEVICE" ]]; then
-            echo -e "${GREEN}✓ Selected disk: $DISK_DEVICE${NC}"
-            break
-        else
-            echo -e "${RED}✗ Disk $DISK_DEVICE not found. Please try again.${NC}"
-            DISK_DEVICE=""
-        fi
-    done
+    # Ask for disk device - SIMPLE
+    read -p "$(echo -e ${BLUE}💾 Enter disk name [nvme0n1]: ${NC})" DISK_NAME
+    DISK_NAME=${DISK_NAME:-nvme0n1}
+    DISK_DEVICE="/dev/$DISK_NAME"
+    
+    if [[ ! -b "$DISK_DEVICE" ]]; then
+        error "Disk $DISK_DEVICE not found!"
+    fi
+    
+    echo -e "${GREEN}✓ Selected disk: $DISK_DEVICE${NC}"
     
     # Get hostname
     while [[ -z "$HOSTNAME" ]]; do
